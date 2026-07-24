@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    @apply bg-paper text-ink;
+  }
+
+  html.dark,
+  html.dark body {
+    @apply bg-paperDark text-inkDark;
+  }
+}
+
+.ghost-text {
+  color: theme("colors.graphite");
+  opacity: 0.55;
+}
