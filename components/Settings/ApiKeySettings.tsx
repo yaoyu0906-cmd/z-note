@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ensureVaultAndUnlock, saveApiKey, deleteApiKey, type Provider } from "@/lib/apiKeys";
 import { DEFAULT_MODELS } from "@/lib/ai/providers";
 import { isVaultUnlocked } from "@/lib/crypto";
+import { Button, Input } from "@/components/ui";
 
 interface ApiKeySettingsProps {
   userId: string;
@@ -49,40 +50,38 @@ export function ApiKeySettings({ userId, selectedModels, onModelChange }: ApiKey
 
   if (!unlocked) {
     return (
-      <div className="max-w-sm space-y-3 p-4 border border-line rounded-md bg-white">
-        <p className="text-sm text-graphite">
+      <div className="max-w-sm space-y-3 p-4 border border-line dark:border-lineDark rounded-md bg-white dark:bg-surfaceDark">
+        <p className="text-sm text-graphite dark:text-graphiteDark">
           Set or enter your vault passphrase. This is separate from your login
           password and is never sent to the server — it only ever exists in
           this browser tab.
         </p>
-        <input
+        <Input
           type="password"
           value={passphrase}
           onChange={(e) => setPassphrase(e.target.value)}
           placeholder="Vault passphrase"
-          className="w-full border border-line rounded px-2 py-1.5 text-sm"
         />
-        <button
-          onClick={handleUnlock}
-          className="text-sm px-3 py-1.5 rounded bg-accent text-white hover:opacity-90"
-        >
+        <Button variant="primary" onClick={handleUnlock}>
           Unlock vault
-        </button>
-        {status && <p className="text-xs text-graphite">{status}</p>}
+        </Button>
+        {status && <p className="text-xs text-graphite dark:text-graphiteDark">{status}</p>}
       </div>
     );
   }
 
   return (
-    <div className="max-w-md space-y-4 p-4 border border-line rounded-md bg-white">
+    <div className="max-w-md space-y-4 p-4 border border-line dark:border-lineDark rounded-md bg-white dark:bg-surfaceDark">
       {PROVIDERS.map((provider) => (
         <div key={provider} className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium capitalize">{provider}</span>
+            <span className="text-sm font-medium capitalize text-ink dark:text-inkDark">
+              {provider}
+            </span>
             <select
               value={selectedModels[provider]}
               onChange={(e) => onModelChange(provider, e.target.value)}
-              className="text-xs border border-line rounded px-1.5 py-1"
+              className="text-xs border border-line dark:border-lineDark rounded px-1.5 py-1 bg-white dark:bg-surfaceDark text-ink dark:text-inkDark"
             >
               {DEFAULT_MODELS[provider].map((m) => (
                 <option key={m} value={m}>
@@ -92,29 +91,23 @@ export function ApiKeySettings({ userId, selectedModels, onModelChange }: ApiKey
             </select>
           </div>
           <div className="flex gap-2">
-            <input
+            <Input
               type="password"
               value={keyInputs[provider] ?? ""}
               onChange={(e) => setKeyInputs((prev) => ({ ...prev, [provider]: e.target.value }))}
               placeholder={`${provider} API key`}
-              className="flex-1 border border-line rounded px-2 py-1 text-sm"
+              className="flex-1"
             />
-            <button
-              onClick={() => handleSaveKey(provider)}
-              className="text-xs px-2 py-1 rounded border border-line hover:bg-accentSoft"
-            >
+            <Button size="sm" onClick={() => handleSaveKey(provider)}>
               Save
-            </button>
-            <button
-              onClick={() => handleDeleteKey(provider)}
-              className="text-xs px-2 py-1 rounded border border-line text-red-600 hover:bg-red-50"
-            >
+            </Button>
+            <Button size="sm" variant="danger" onClick={() => handleDeleteKey(provider)}>
               Remove
-            </button>
+            </Button>
           </div>
         </div>
       ))}
-      {status && <p className="text-xs text-graphite">{status}</p>}
+      {status && <p className="text-xs text-graphite dark:text-graphiteDark">{status}</p>}
     </div>
   );
 }
