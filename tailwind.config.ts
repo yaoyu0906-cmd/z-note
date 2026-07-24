@@ -21,6 +21,7 @@ const config: Config = {
         graphiteDark: "#9297A0",
         lineDark: "#2C2E32",
         accentSoftDark: "#1E2B27",
+        accentDark: "#6FB79E", // muted pine for readable accent text on dark surfaces
       },
       fontFamily: {
         mono: ["JetBrains Mono", "Menlo", "monospace"],
