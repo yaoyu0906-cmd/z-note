@@ -28,7 +28,7 @@ export function PageBlock() {
   return (
     <div className="border border-line dark:border-lineDark rounded-md overflow-hidden">
       <div className="flex items-center justify-between bg-paper dark:bg-paperDark px-2 py-1 border-b border-line dark:border-lineDark">
-        <span className="text-[11px] text-graphite">Page block</span>
+        <span className="text-[11px] text-graphite dark:text-graphiteDark">Page block</span>
         <div className="flex gap-1">
           {(["preview", "code", "split"] as PageView[]).map((v) => (
             <IconButton key={v} label={v} active={view === v} onClick={() => setView(v)}>
