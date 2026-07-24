@@ -25,7 +25,7 @@ export function TabBar() {
               onClick={() => openTab(tab.id, tab.type)}
               className={`group flex items-center gap-2 px-3 py-2 text-sm border-r border-line dark:border-lineDark cursor-pointer whitespace-nowrap ${
                 active
-                  ? "bg-accentSoft dark:bg-accentSoftDark text-accent"
+                  ? "bg-accentSoft dark:bg-accentSoftDark text-accent dark:text-accentDark"
                   : "text-graphite dark:text-graphiteDark hover:bg-paper dark:hover:bg-paperDark"
               }`}
             >
@@ -36,7 +36,7 @@ export function TabBar() {
                   e.stopPropagation();
                   closeTab(tab.id);
                 }}
-                className="opacity-0 group-hover:opacity-100 text-graphite hover:text-ink"
+                className="opacity-0 group-hover:opacity-100 text-graphite dark:text-graphiteDark hover:text-ink dark:hover:text-inkDark"
                 aria-label={`Close ${tab.title}`}
               >
                 ×
