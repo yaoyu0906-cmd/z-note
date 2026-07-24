@@ -33,7 +33,7 @@ export function Dialog({ open, onClose, children, placement = "center" }: Dialog
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg rounded-lg border border-line bg-white shadow-lg"
+        className="w-full max-w-lg rounded-lg border border-line dark:border-lineDark bg-white dark:bg-surfaceDark shadow-lg"
       >
         {children}
       </div>
