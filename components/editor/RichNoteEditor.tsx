@@ -1,103 +1,66 @@
 "use client";
 
 import { useState } from "react";
-import type { NoteDocument, NoteBlock } from "@/lib/fs/fileSystemAccess";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Placeholder from "@tiptap/extension-placeholder";
+import ImageExtension from "@tiptap/extension-image";
+import Link from "@tiptap/extension-link";
+import { RichNoteToolbar } from "@/components/editor/RichNoteToolbar";
 import { PageBlock } from "@/components/editor/PageBlock";
-import { Button } from "@/components/ui";
 
-const PLACEHOLDER_DOC: NoteDocument = {
-  version: 1,
-  blocks: [
-    { type: "heading", level: 1, text: "Untitled" },
-    { type: "paragraph", text: "Start writing, or insert a block below." },
-  ],
-};
-
-function BlockView({ block, onChange }: { block: NoteBlock; onChange: (b: NoteBlock) => void }) {
-  switch (block.type) {
-    case "heading": {
-      const Tag = (`h${block.level}` as unknown) as "h1" | "h2" | "h3";
-      return (
-        <Tag
-          contentEditable
-          suppressContentEditableWarning
-          onBlur={(e) => onChange({ ...block, text: e.currentTarget.textContent ?? "" })}
-          className="font-semibold text-ink dark:text-inkDark outline-none"
-        >
-          {block.text}
-        </Tag>
-      );
-    }
-    case "paragraph":
-      return (
-        <p
-          contentEditable
-          suppressContentEditableWarning
-          onBlur={(e) => onChange({ ...block, text: e.currentTarget.textContent ?? "" })}
-          className="text-sm leading-relaxed text-ink dark:text-inkDark outline-none"
-        >
-          {block.text}
-        </p>
-      );
-    case "image":
-      // eslint-disable-next-line @next/next/no-img-element
-      return <img src={block.src} alt={block.alt ?? ""} className="rounded max-w-full" />;
-    case "background":
-      return (
-        <div
-          className="h-24 rounded"
-          style={{ backgroundColor: block.color, backgroundImage: block.image ? `url(${block.image})` : undefined }}
-        />
-      );
-    default:
-      return null;
-  }
-}
-
-const INSERTABLE_BLOCKS: { label: string; create: () => NoteBlock }[] = [
-  { label: "+ Text", create: () => ({ type: "paragraph", text: "" }) },
-  { label: "+ Heading", create: () => ({ type: "heading", level: 2, text: "" }) },
-  { label: "+ Page", create: () => ({ type: "paragraph", text: "" }) }, // see note below
-];
+const STARTER_CONTENT = `
+  <h1>Untitled</h1>
+  <p>Start writing, or insert a block from the toolbar above.</p>
+`;
 
 export function RichNoteEditor({ fileName }: { fileName: string }) {
-  const [doc, setDoc] = useState<NoteDocument>(PLACEHOLDER_DOC);
-  const [showPage, setShowPage] = useState(false);
+  const [pageBlocks, setPageBlocks] = useState<number[]>([]);
 
-  function updateBlock(index: number, next: NoteBlock) {
-    setDoc((prev) => ({ ...prev, blocks: prev.blocks.map((b, i) => (i === index ? next : b)) }));
-  }
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Placeholder.configure({ placeholder: "Write something…" }),
+      ImageExtension.configure({ HTMLAttributes: { class: "rounded-md" } }),
+      Link.configure({ openOnClick: false, HTMLAttributes: { class: "cursor-pointer" } }),
+    ],
+    content: STARTER_CONTENT,
+    editorProps: {
+      attributes: {
+        class:
+          "prose prose-sm dark:prose-invert max-w-none focus:outline-none " +
+          "prose-headings:font-semibold prose-a:text-accent dark:prose-a:text-accentDark " +
+          "prose-code:text-accent dark:prose-code:text-accentDark prose-code:before:content-none prose-code:after:content-none " +
+          "prose-blockquote:border-l-accent dark:prose-blockquote:border-l-accentDark " +
+          "prose-hr:border-line dark:prose-hr:border-lineDark min-h-[60vh]",
+      },
+    },
+    // Avoids an SSR/CSR content mismatch warning — the doc is only ever
+    // populated client-side for now (no persistence layer yet).
+    immediatelyRender: false,
+  });
 
-  function insertBlock(create: () => NoteBlock) {
-    setDoc((prev) => ({ ...prev, blocks: [...prev.blocks, create()] }));
+  function insertPageBlock() {
+    setPageBlocks((prev) => [...prev, Date.now()]);
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-8 space-y-4">
-      <p className="text-xs text-graphite font-mono">{fileName}</p>
-
-      {doc.blocks.map((block, i) => (
-        <BlockView key={i} block={block} onChange={(next) => updateBlock(i, next)} />
-      ))}
-
-      {showPage && <PageBlock />}
-
-      <div className="flex gap-2 pt-4 border-t border-line dark:border-lineDark">
-        {INSERTABLE_BLOCKS.map((b) => (
-          <Button key={b.label} size="sm" onClick={() => (b.label === "+ Page" ? setShowPage(true) : insertBlock(b.create))}>
-            {b.label}
-          </Button>
-        ))}
+    <div className="flex h-full flex-col border border-line dark:border-lineDark rounded-md overflow-hidden">
+      <div className="flex items-center justify-between border-b border-line dark:border-lineDark bg-white dark:bg-surfaceDark px-3 py-2">
+        <span className="text-sm text-graphite dark:text-graphiteDark font-mono">{fileName}</span>
       </div>
 
-      <p className="text-xs text-graphite pt-6">
-        This is a structural placeholder. Swap in a Lexical or TipTap document
-        model here for real rich-text editing, checklists, tables, code
-        blocks, embeds, AI blocks, and drawings — the <code>NoteDocument</code>{" "}
-        / <code>NoteBlock</code> schema in{" "}
-        <code>lib/fs/fileSystemAccess.ts</code> is meant to grow to support
-        those block types.
-      </p>
+      <RichNoteToolbar editor={editor} onInsertPage={insertPageBlock} />
+
+      <div className="flex-1 overflow-auto bg-paper dark:bg-paperDark">
+        <div className="max-w-2xl mx-auto p-8 space-y-4">
+          <EditorContent editor={editor} />
+
+          {pageBlocks.map((id) => (
+            <PageBlock key={id} />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
