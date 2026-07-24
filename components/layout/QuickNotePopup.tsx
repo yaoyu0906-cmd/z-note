@@ -45,11 +45,11 @@ export function QuickNotePopup() {
           onKeyDown={handleKeyDown}
           rows={3}
           placeholder="Type a thought. Press Enter to save."
-          className="w-full resize-none text-sm outline-none bg-transparent text-ink dark:text-inkDark placeholder:text-graphite"
+          className="w-full resize-none text-sm outline-none bg-transparent text-ink dark:text-inkDark placeholder:text-graphite dark:placeholder:text-graphiteDark"
         />
-        <p className="text-[11px] text-graphite mt-1">Enter to save · Shift+Enter for a new line</p>
+        <p className="text-[11px] text-graphite dark:text-graphiteDark mt-1">Enter to save · Shift+Enter for a new line</p>
       </div>
-      {savedFlash && <div className="px-3 pb-2 text-xs text-accent">Saved to Quick Notes.</div>}
+      {savedFlash && <div className="px-3 pb-2 text-xs text-accent dark:text-accentDark">Saved to Quick Notes.</div>}
     </Dialog>
   );
 }
