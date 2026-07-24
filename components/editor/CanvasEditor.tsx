@@ -24,12 +24,12 @@ export function CanvasEditor({ fileName }: { fileName: string }) {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-line dark:border-lineDark text-xs text-graphite">
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-line dark:border-lineDark text-xs text-graphite dark:text-graphiteDark">
         <span className="font-mono">{fileName}</span>
         <span>{Math.round(zoom * 100)}%</span>
       </div>
       <div
-        className="flex-1 overflow-hidden bg-[radial-gradient(circle,theme(colors.line)_1px,transparent_1px)] bg-[length:24px_24px] cursor-grab active:cursor-grabbing"
+        className="flex-1 overflow-hidden bg-[radial-gradient(circle,theme(colors.line)_1px,transparent_1px)] dark:bg-[radial-gradient(circle,theme(colors.lineDark)_1px,transparent_1px)] bg-[length:24px_24px] cursor-grab active:cursor-grabbing"
         onWheel={handleWheel}
         onMouseDown={() => setIsPanning(true)}
         onMouseUp={() => setIsPanning(false)}
@@ -42,7 +42,7 @@ export function CanvasEditor({ fileName }: { fileName: string }) {
           className="h-full w-full flex items-center justify-center"
           style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
         >
-          <div className="rounded border border-dashed border-line dark:border-lineDark px-6 py-4 text-sm text-graphite bg-white/60 dark:bg-surfaceDark/60">
+          <div className="rounded border border-dashed border-line dark:border-lineDark px-6 py-4 text-sm text-graphite dark:text-graphiteDark bg-white/60 dark:bg-surfaceDark/60">
             Canvas is empty — drawing tools (pen, highlighter, shapes, eraser,
             lasso) mount here once the drawing engine is wired in.
           </div>
