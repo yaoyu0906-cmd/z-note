@@ -27,7 +27,7 @@ export default function SettingsPage() {
             onClick={() => setSection(s.id)}
             className={`w-full text-left text-sm px-2 py-1.5 rounded ${
               section === s.id
-                ? "bg-accentSoft dark:bg-accentSoftDark text-accent"
+                ? "bg-accentSoft dark:bg-accentSoftDark text-accent dark:text-accentDark"
                 : "text-graphite dark:text-graphiteDark hover:bg-paper dark:hover:bg-paperDark"
             }`}
           >
