@@ -55,7 +55,7 @@ export function CommandPalette() {
       <div className="max-h-80 overflow-y-auto py-1">
         {filteredCommands.length > 0 && (
           <div className="px-2 py-1">
-            <p className="px-1 text-[11px] uppercase tracking-wide text-graphite">Commands</p>
+            <p className="px-1 text-[11px] uppercase tracking-wide text-graphite dark:text-graphiteDark">Commands</p>
             {filteredCommands.map((cmd) => (
               <button
                 key={cmd.id}
@@ -63,7 +63,7 @@ export function CommandPalette() {
                   cmd.run(router);
                   close();
                 }}
-                className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-accentSoft"
+                className="w-full text-left px-2 py-1.5 text-sm rounded text-ink dark:text-inkDark hover:bg-accentSoft dark:hover:bg-accentSoftDark"
               >
                 {cmd.label}
               </button>
@@ -72,12 +72,12 @@ export function CommandPalette() {
         )}
         {filteredNotes.length > 0 && (
           <div className="px-2 py-1">
-            <p className="px-1 text-[11px] uppercase tracking-wide text-graphite">Notes</p>
+            <p className="px-1 text-[11px] uppercase tracking-wide text-graphite dark:text-graphiteDark">Notes</p>
             {filteredNotes.map((note) => (
               <button
                 key={note.id}
                 onClick={() => openNote(note.id, note.type)}
-                className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-accentSoft"
+                className="w-full text-left px-2 py-1.5 text-sm rounded text-ink dark:text-inkDark hover:bg-accentSoft dark:hover:bg-accentSoftDark"
               >
                 {note.title}
               </button>
@@ -85,7 +85,7 @@ export function CommandPalette() {
           </div>
         )}
         {filteredCommands.length === 0 && filteredNotes.length === 0 && (
-          <p className="px-3 py-4 text-sm text-graphite">No matches.</p>
+          <p className="px-3 py-4 text-sm text-graphite dark:text-graphiteDark">No matches.</p>
         )}
       </div>
     </Dialog>
