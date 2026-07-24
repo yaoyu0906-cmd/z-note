@@ -92,18 +92,26 @@ export function MarkdownEditor({
   }
 
   return (
-    <div className="flex h-full flex-col border border-line rounded-md overflow-hidden">
-      <div className="flex items-center justify-between border-b border-line bg-white px-3 py-2">
-        <span className="text-sm text-graphite font-mono">{fileName}</span>
+    <div className="flex h-full flex-col border border-line dark:border-lineDark rounded-md overflow-hidden">
+      <div className="flex items-center justify-between border-b border-line dark:border-lineDark bg-white dark:bg-surfaceDark px-3 py-2">
+        <span className="text-sm text-graphite dark:text-graphiteDark font-mono">{fileName}</span>
         <div className="flex items-center gap-2">
           <button
-            className={`text-xs px-2 py-1 rounded ${mode === "code" ? "bg-accentSoft text-accent" : "text-graphite"}`}
+            className={`text-xs px-2 py-1 rounded ${
+              mode === "code"
+                ? "bg-accentSoft text-accent dark:bg-accentSoftDark dark:text-accentDark"
+                : "text-graphite dark:text-graphiteDark hover:bg-accentSoft dark:hover:bg-accentSoftDark hover:text-ink dark:hover:text-inkDark"
+            }`}
             onClick={() => setMode("code")}
           >
             Code
           </button>
           <button
-            className={`text-xs px-2 py-1 rounded ${mode === "preview" ? "bg-accentSoft text-accent" : "text-graphite"}`}
+            className={`text-xs px-2 py-1 rounded ${
+              mode === "preview"
+                ? "bg-accentSoft text-accent dark:bg-accentSoftDark dark:text-accentDark"
+                : "text-graphite dark:text-graphiteDark hover:bg-accentSoft dark:hover:bg-accentSoftDark hover:text-ink dark:hover:text-inkDark"
+            }`}
             onClick={() => setMode("preview")}
           >
             Preview
@@ -111,19 +119,23 @@ export function MarkdownEditor({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 border-b border-line bg-white px-3 py-1.5">
-        <span className="text-xs text-graphite">Selection:</span>
+      <div className="flex items-center gap-2 border-b border-line dark:border-lineDark bg-white dark:bg-surfaceDark px-3 py-1.5">
+        <span className="text-xs text-graphite dark:text-graphiteDark">Selection:</span>
         {(["rewrite", "expand", "summarize"] as const).map((action) => (
           <button
             key={action}
             disabled={rewriting || !apiKey}
             onClick={() => rewriteSelection(action)}
-            className="text-xs px-2 py-1 rounded border border-line hover:bg-accentSoft disabled:opacity-40"
+            className="text-xs px-2 py-1 rounded border border-line dark:border-lineDark text-ink dark:text-inkDark hover:bg-accentSoft dark:hover:bg-accentSoftDark disabled:opacity-40"
           >
             {action}
           </button>
         ))}
-        {!apiKey && <span className="text-xs text-graphite ml-1">(add an API key in Settings)</span>}
+        {!apiKey && (
+          <span className="text-xs text-graphite dark:text-graphiteDark ml-1">
+            (add an API key in Settings)
+          </span>
+        )}
       </div>
 
       <div className="relative flex-1">
@@ -135,7 +147,7 @@ export function MarkdownEditor({
               onChange={handleChange}
               onKeyDown={handleKeyDown}
               spellCheck={false}
-              className="w-full h-full resize-none p-4 font-mono text-sm outline-none bg-paper"
+              className="w-full h-full resize-none p-4 font-mono text-sm outline-none bg-paper dark:bg-paperDark text-ink dark:text-inkDark"
               placeholder="Start writing…"
             />
             {suggestion && (
@@ -145,9 +157,9 @@ export function MarkdownEditor({
             )}
           </>
         ) : (
-          <div className="p-4 prose prose-sm max-w-none overflow-auto h-full">
+          <div className="p-4 prose prose-sm dark:prose-invert max-w-none overflow-auto h-full">
             {/* Swap for a real markdown renderer (e.g. react-markdown) once deps are installed */}
-            <pre className="whitespace-pre-wrap font-sans">{content}</pre>
+            <pre className="whitespace-pre-wrap font-sans text-ink dark:text-inkDark">{content}</pre>
           </div>
         )}
       </div>
