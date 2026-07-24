@@ -33,7 +33,7 @@ export function FileTree() {
       </div>
 
       {!isSupported && (
-        <p className="text-xs text-red-600">
+        <p className="text-xs text-red-600 dark:text-red-400">
           File System Access requires Chrome or Edge — local folder browsing isn't available in this browser.
         </p>
       )}
@@ -48,7 +48,7 @@ export function FileTree() {
               }}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-accentSoft dark:hover:bg-accentSoftDark"
             >
-              <span className="text-[10px] font-mono text-graphite w-6 shrink-0">
+              <span className="text-[10px] font-mono text-graphite dark:text-graphiteDark w-6 shrink-0">
                 {TYPE_ICON[note.type]}
               </span>
               <span className="truncate text-ink dark:text-inkDark">{note.title}</span>
