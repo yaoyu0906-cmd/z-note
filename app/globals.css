@@ -18,3 +18,17 @@
   color: theme("colors.graphite");
   opacity: 0.55;
 }
+
+/* Required by @tiptap/extension-placeholder — renders the "Write
+   something…" hint text in the rich note editor. */
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: theme("colors.graphite");
+}
+
+html.dark .ProseMirror p.is-editor-empty:first-child::before {
+  color: theme("colors.graphiteDark");
+}
