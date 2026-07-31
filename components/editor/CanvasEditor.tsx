@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { EditableFilename } from "@/components/editor/EditableFilename";
+import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
+import type { Note } from "@/lib/types/note";
 
 /**
  * Structural placeholder for the .canvas infinite whiteboard.
@@ -10,10 +13,11 @@ import { useState } from "react";
  * own component (rather than inline in the route) means that swap won't
  * touch routing, tabs, or the workspace store.
  */
-export function CanvasEditor({ fileName }: { fileName: string }) {
+export function CanvasEditor({ note }: { note: Note }) {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
+  const renameNote = useWorkspaceStore((s) => s.renameNote);
 
   function handleWheel(e: React.WheelEvent) {
     if (e.ctrlKey) {
@@ -25,7 +29,12 @@ export function CanvasEditor({ fileName }: { fileName: string }) {
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-line dark:border-lineDark text-xs text-graphite dark:text-graphiteDark">
-        <span className="font-mono">{fileName}</span>
+        <EditableFilename
+          title={note.title}
+          path={note.path}
+          type={note.type}
+          onRename={(updates) => renameNote(note.id, updates)}
+        />
         <span>{Math.round(zoom * 100)}%</span>
       </div>
       <div

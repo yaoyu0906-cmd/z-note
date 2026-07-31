@@ -9,4 +9,5 @@ export const DEFAULT_SHORTCUTS: ShortcutBinding[] = [
   { id: "split-editor", label: "Split Editor", keys: "Ctrl+\\", editable: true },
   { id: "toggle-sidebar", label: "Toggle Sidebar", keys: "Ctrl+B", editable: true },
   { id: "close-tab", label: "Close Tab", keys: "Ctrl+W", editable: true },
+  { id: "save-note", label: "Save Note", keys: "Ctrl+S", editable: true },
 ];

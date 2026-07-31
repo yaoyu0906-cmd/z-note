@@ -2,6 +2,7 @@
 
 import { useUIStore } from "@/lib/store/useUIStore";
 import { SidebarToggle } from "@/components/layout/Sidebar";
+import { WorkspaceSwitcher } from "@/components/layout/WorkspaceSwitcher";
 import { Kbd, IconButton } from "@/components/ui";
 
 export function TopBar() {
@@ -24,11 +25,14 @@ export function TopBar() {
         <Kbd>Ctrl+P</Kbd>
       </button>
 
-      <IconButton label="Profile">
-        <span className="h-5 w-5 rounded-full bg-accentSoft dark:bg-accentSoftDark flex items-center justify-center text-[10px] text-accent dark:text-accentDark">
-          U
-        </span>
-      </IconButton>
+      <div className="flex items-center gap-2">
+        <WorkspaceSwitcher />
+        <IconButton label="Profile">
+          <span className="h-5 w-5 rounded-full bg-accentSoft dark:bg-accentSoftDark flex items-center justify-center text-[10px] text-accent dark:text-accentDark">
+            U
+          </span>
+        </IconButton>
+      </div>
     </div>
   );
 }

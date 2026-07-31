@@ -4,3 +4,4 @@ export { Input } from "./Input";
 export { Kbd } from "./Kbd";
 export { Separator } from "./Separator";
 export { Dialog } from "./Dialog";
+export { Select } from "./Select";

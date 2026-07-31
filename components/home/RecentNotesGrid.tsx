@@ -29,7 +29,7 @@ export function RecentNotesGrid() {
             onClick={() => {
               openTab(note);
               touchRecent(note.id);
-              router.push(`${note.type === "canvas" ? "/canvas" : "/note"}/${note.id}`);
+              router.push(`${note.type === "canvas" ? "/canvas" : "/note"}/${encodeURIComponent(note.id)}`);
             }}
             className="text-left rounded-md border border-line dark:border-lineDark bg-white dark:bg-surfaceDark p-3 hover:border-accent transition-colors"
           >

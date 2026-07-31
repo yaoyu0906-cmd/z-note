@@ -6,7 +6,8 @@ export type ShortcutAction =
   | "toggle-page-view"
   | "split-editor"
   | "toggle-sidebar"
-  | "close-tab";
+  | "close-tab"
+  | "save-note";
 
 export interface ShortcutBinding {
   id: ShortcutAction;

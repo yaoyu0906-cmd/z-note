@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useUIStore } from "@/lib/store/useUIStore";
 import { useTabsStore } from "@/lib/store/useTabsStore";
 import { useSettingsStore } from "@/lib/store/useSettingsStore";
+import { useActiveEditorStore } from "@/lib/store/useActiveEditorStore";
 import type { ShortcutAction } from "@/lib/types/shortcuts";
 
 /** Normalizes a KeyboardEvent into the same "Ctrl+Shift+N" style used in ShortcutBinding.keys. */
@@ -20,7 +21,8 @@ function eventToKeyString(e: KeyboardEvent): string {
 export function useKeyboardShortcuts() {
   const router = useRouter();
   const shortcuts = useSettingsStore((s) => s.shortcuts);
-  const { setCommandPaletteOpen, setQuickNoteOpen, toggleSidebar, setAIPanelOpen } = useUIStore();
+  const { setCommandPaletteOpen, setQuickNoteOpen, openNewFileDialog, toggleSidebar, setAIPanelOpen } =
+    useUIStore();
   const { toggleSplit, closeTab, activeTabByPane } = useTabsStore();
 
   useEffect(() => {
@@ -34,7 +36,7 @@ export function useKeyboardShortcuts() {
 
       switch (action) {
         case "new-note":
-          router.push("/note/new");
+          openNewFileDialog();
           break;
         case "quick-note":
           setQuickNoteOpen(true);
@@ -53,13 +55,27 @@ export function useKeyboardShortcuts() {
           break;
         case "close-tab": {
           const activeId = activeTabByPane.primary;
-          if (activeId) closeTab(activeId);
+          if (!activeId) break;
+          closeTab(activeId);
+          const { tabs, activeTabByPane: nextActive } = useTabsStore.getState();
+          if (tabs.length === 0) {
+            router.push("/");
+          } else {
+            const nextId = nextActive.primary;
+            const nextTab = tabs.find((t) => t.id === nextId);
+            if (nextTab) {
+              router.push(`${nextTab.type === "canvas" ? "/canvas" : "/note"}/${nextTab.id}`);
+            }
+          }
           break;
         }
         case "toggle-page-view":
           // Handled locally by the focused PageBlock instance via a custom event,
           // since only one Page block should react at a time.
           window.dispatchEvent(new CustomEvent("z-note:toggle-page-view"));
+          break;
+        case "save-note":
+          useActiveEditorStore.getState().triggerSave();
           break;
       }
     }
@@ -71,6 +87,7 @@ export function useKeyboardShortcuts() {
     router,
     setCommandPaletteOpen,
     setQuickNoteOpen,
+    openNewFileDialog,
     setAIPanelOpen,
     toggleSplit,
     toggleSidebar,

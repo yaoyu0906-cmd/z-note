@@ -32,3 +32,134 @@
 html.dark .ProseMirror p.is-editor-empty:first-child::before {
   color: theme("colors.graphiteDark");
 }
+
+/* ---- Scroll bars ---- */
+.zn-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: theme("colors.line") transparent;
+}
+html.dark .zn-scroll {
+  scrollbar-color: theme("colors.lineDark") transparent;
+}
+.zn-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.zn-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.zn-scroll::-webkit-scrollbar-thumb {
+  background-color: theme("colors.line");
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+html.dark .zn-scroll::-webkit-scrollbar-thumb {
+  background-color: theme("colors.lineDark");
+}
+.zn-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: theme("colors.graphite");
+  background-clip: content-box;
+}
+html.dark .zn-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: theme("colors.graphiteDark");
+}
+
+/* ---- Code block syntax highlighting (lowlight/highlight.js tokens) ---- */
+.code-block-view .hljs-comment,
+.code-block-view .hljs-quote {
+  color: theme("colors.graphite");
+  font-style: italic;
+}
+html.dark .code-block-view .hljs-comment,
+html.dark .code-block-view .hljs-quote {
+  color: theme("colors.graphiteDark");
+}
+.code-block-view .hljs-keyword,
+.code-block-view .hljs-selector-tag,
+.code-block-view .hljs-literal {
+  color: theme("colors.purple.600");
+}
+html.dark .code-block-view .hljs-keyword,
+html.dark .code-block-view .hljs-selector-tag,
+html.dark .code-block-view .hljs-literal {
+  color: theme("colors.purple.400");
+}
+.code-block-view .hljs-string,
+.code-block-view .hljs-addition {
+  color: theme("colors.green.700");
+}
+html.dark .code-block-view .hljs-string,
+html.dark .code-block-view .hljs-addition {
+  color: theme("colors.green.400");
+}
+.code-block-view .hljs-number,
+.code-block-view .hljs-variable.constant_ {
+  color: theme("colors.orange.600");
+}
+html.dark .code-block-view .hljs-number,
+html.dark .code-block-view .hljs-variable.constant_ {
+  color: theme("colors.orange.400");
+}
+.code-block-view .hljs-title,
+.code-block-view .hljs-title.function_,
+.code-block-view .hljs-section {
+  color: theme("colors.blue.600");
+}
+html.dark .code-block-view .hljs-title,
+html.dark .code-block-view .hljs-title.function_,
+html.dark .code-block-view .hljs-section {
+  color: theme("colors.blue.400");
+}
+.code-block-view .hljs-attr,
+.code-block-view .hljs-attribute,
+.code-block-view .hljs-variable {
+  color: theme("colors.sky.600");
+}
+html.dark .code-block-view .hljs-attr,
+html.dark .code-block-view .hljs-attribute,
+html.dark .code-block-view .hljs-variable {
+  color: theme("colors.sky.400");
+}
+.code-block-view .hljs-built_in,
+.code-block-view .hljs-type {
+  color: theme("colors.accent");
+}
+html.dark .code-block-view .hljs-built_in,
+html.dark .code-block-view .hljs-type {
+  color: theme("colors.accentDark");
+}
+.code-block-view .hljs-tag,
+.code-block-view .hljs-name {
+  color: theme("colors.pink.600");
+}
+html.dark .code-block-view .hljs-tag,
+html.dark .code-block-view .hljs-name {
+  color: theme("colors.pink.400");
+}
+.code-block-view .hljs-deletion {
+  color: theme("colors.red.600");
+}
+html.dark .code-block-view .hljs-deletion {
+  color: theme("colors.red.400");
+}
+.code-block-view .hljs-emphasis {
+  font-style: italic;
+}
+.code-block-view .hljs-strong {
+  font-weight: 600;
+}
+
+/* ---- Quote speaker/attribution field ---- */
+.quote-speaker {
+  margin-top: 0.25rem;
+  font-style: normal;
+  font-size: 0.8rem;
+  color: theme("colors.graphite");
+}
+html.dark .quote-speaker {
+  color: theme("colors.graphiteDark");
+}
+.quote-speaker::before {
+  content: "— ";
+}

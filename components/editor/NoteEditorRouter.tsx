@@ -1,35 +1,35 @@
 "use client";
 
-import { useState } from "react";
 import type { Note } from "@/lib/types/note";
 import { MarkdownEditor } from "@/components/Editor/MarkdownEditor";
 import { RichNoteEditor } from "@/components/editor/RichNoteEditor";
 import { CanvasEditor } from "@/components/editor/CanvasEditor";
 import { useSettingsStore } from "@/lib/store/useSettingsStore";
+import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 
 interface NoteEditorRouterProps {
   note: Note;
-  initialContent?: string;
 }
 
-export function NoteEditorRouter({ note, initialContent = "" }: NoteEditorRouterProps) {
-  const [content, setContent] = useState(initialContent);
+export function NoteEditorRouter({ note }: NoteEditorRouterProps) {
   const activeProvider = useSettingsStore((s) => s.activeProvider);
   const selectedModels = useSettingsStore((s) => s.selectedModels);
+  const handle = useWorkspaceStore((s) => s.getFileHandle(note.id));
+  const initialContent = useWorkspaceStore((s) => s.noteContents[note.id]);
 
   switch (note.type) {
     case "canvas":
-      return <CanvasEditor fileName={note.path} />;
+      return <CanvasEditor note={note} />;
     case "note":
-      return <RichNoteEditor fileName={note.path} />;
+      return <RichNoteEditor note={note} handle={handle} initialContent={initialContent} />;
     case "md":
     case "txt":
     default:
       return (
         <MarkdownEditor
-          fileName={note.path}
-          content={content}
-          onChange={setContent}
+          note={note}
+          handle={handle}
+          initialContent={initialContent}
           provider={activeProvider}
           apiKey={null} // wired up once the vault-unlock flow is mounted at the app shell level
           model={selectedModels[activeProvider]}

@@ -14,7 +14,7 @@ function draftCanvas(id: string): Note {
     title: "Untitled Canvas",
     type: "canvas",
     path: `${id}.canvas`,
-    tags: [],
+    tagIds: [],
     isFavorite: false,
     createdAt: now,
     updatedAt: now,
@@ -29,9 +29,11 @@ export default function CanvasPage() {
   const openTab = useTabsStore((s) => s.openTab);
   const setActiveTab = useTabsStore((s) => s.setActiveTab);
 
+  const decodedId = useMemo(() => decodeURIComponent(params.id), [params.id]);
+
   const note = useMemo(
-    () => notes.find((n) => n.id === params.id) ?? draftCanvas(params.id),
-    [notes, params.id]
+    () => notes.find((n) => n.id === decodedId) ?? draftCanvas(decodedId),
+    [notes, decodedId]
   );
 
   useEffect(() => {
@@ -41,5 +43,5 @@ export default function CanvasPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note.id]);
 
-  return <CanvasEditor fileName={note.path} />;
+  return <CanvasEditor note={note} />;
 }

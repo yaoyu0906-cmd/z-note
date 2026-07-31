@@ -14,7 +14,7 @@ function draftNote(id: string): Note {
     title: "Untitled",
     type: "md",
     path: `${id}.md`,
-    tags: [],
+    tagIds: [],
     isFavorite: false,
     createdAt: now,
     updatedAt: now,
@@ -29,9 +29,11 @@ export default function NotePage() {
   const openTab = useTabsStore((s) => s.openTab);
   const setActiveTab = useTabsStore((s) => s.setActiveTab);
 
+  const decodedId = useMemo(() => decodeURIComponent(params.id), [params.id]);
+
   const note = useMemo(
-    () => (params.id === "new" ? draftNote("new") : notes.find((n) => n.id === params.id) ?? draftNote(params.id)),
-    [notes, params.id]
+    () => (decodedId === "new" ? draftNote("new") : notes.find((n) => n.id === decodedId) ?? draftNote(decodedId)),
+    [notes, decodedId]
   );
 
   useEffect(() => {
