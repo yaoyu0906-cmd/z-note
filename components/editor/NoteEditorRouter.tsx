@@ -1,7 +1,7 @@
 "use client";
 
 import type { Note } from "@/lib/types/note";
-import { MarkdownEditor } from "@/components/Editor/MarkdownEditor";
+import { MarkdownEditor } from "@/components/editor/MarkdownEditor";
 import { RichNoteEditor } from "@/components/editor/RichNoteEditor";
 import { CanvasEditor } from "@/components/editor/CanvasEditor";
 import { useSettingsStore } from "@/lib/store/useSettingsStore";

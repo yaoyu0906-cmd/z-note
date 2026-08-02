@@ -59,6 +59,8 @@ interface WorkspaceEntry {
   folderHandles: Record<string, FileSystemDirectoryHandle>;
   /** Which folder paths are expanded in this workspace's Explorer section. */
   expandedFolders: Record<string, boolean>;
+  /** Folder paths marked as favorite (persisted alongside file favorites/tags). */
+  favoriteFolders: string[];
 }
 
 /** Walks a folder, reads (or creates) its `.z-note-meta.json` sidecar for
@@ -104,6 +106,7 @@ async function loadWorkspaceContents(dirHandle: FileSystemDirectoryHandle) {
     folderTree: tree,
     folderHandles,
     expandedFolders: {},
+    favoriteFolders: meta.favoriteFolders,
   };
 
   return { entry, notes, tags, fileHandles };
@@ -127,7 +130,7 @@ async function persistWorkspaceMeta(workspaceId: string | undefined, state: Work
     if (n.tagIds.length > 0) noteTags[n.path] = n.tagIds;
     if (n.isFavorite) favorites.push(n.path);
   }
-  const meta: WorkspaceMeta = { workspaceId, tags, noteTags, favorites };
+  const meta: WorkspaceMeta = { workspaceId, tags, noteTags, favorites, favoriteFolders: entry.favoriteFolders };
   await writeWorkspaceMeta(entry.dirHandle, meta);
 }
 
@@ -159,6 +162,7 @@ interface WorkspaceState {
   setActiveWorkspace: (workspaceId: string) => void;
   getFileHandle: (noteId: string) => FileSystemFileHandle | undefined;
   toggleFolder: (workspaceId: string, path: string) => void;
+  toggleFolderFavorite: (workspaceId: string, path: string) => void;
   createFolder: (workspaceId: string, parentPath: string, name: string) => Promise<void>;
   /** Moves a single note into a folder — same workspace or a different
    *  one. A no-op destination (dropped back where it already was) is
@@ -394,6 +398,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       ),
     })),
 
+  toggleFolderFavorite: (workspaceId, path) => {
+    set((s) => ({
+      workspaces: s.workspaces.map((w) =>
+        w.id === workspaceId
+          ? {
+              ...w,
+              favoriteFolders: w.favoriteFolders.includes(path)
+                ? w.favoriteFolders.filter((p) => p !== path)
+                : [...w.favoriteFolders, path],
+            }
+          : w
+      ),
+    }));
+    persistWorkspaceMeta(workspaceId, get());
+  },
+
   createFolder: async (workspaceId, parentPath, name) => {
     const safeName = sanitizeFileName(name);
     if (!safeName) return;
@@ -543,6 +563,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       const sourceParentHandle = sourceEntry.folderHandles[sourceParentPath] ?? sourceEntry.dirHandle;
       await sourceParentHandle.removeEntry(baseName, { recursive: true });
 
+      const wasFavorited = sourceEntry.favoriteFolders.includes(source.path);
       const sameWorkspace = targetWorkspaceId === source.workspaceId;
       set((s) => {
         const idMapByOld = new Map(idMap.map((m) => [m.oldId, m]));
@@ -562,7 +583,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         const fileHandles = { ...s.fileHandles };
         for (const m of idMap) delete fileHandles[m.oldId];
         Object.assign(fileHandles, newFileHandles);
-        return { notes, fileHandles };
+        const workspaces = s.workspaces.map((w) => {
+          if (w.id === sourceEntry.id) {
+            // Drop the moved folder and any favorited descendants — their
+            // old paths no longer exist in this workspace.
+            const favoriteFolders = w.favoriteFolders.filter(
+              (p) => p !== source.path && !p.startsWith(`${source.path}/`)
+            );
+            return w.id === targetEntry.id
+              ? { ...w, favoriteFolders: wasFavorited ? [...favoriteFolders, newRootPath] : favoriteFolders }
+              : { ...w, favoriteFolders };
+          }
+          if (w.id === targetEntry.id && wasFavorited) {
+            return { ...w, favoriteFolders: [...w.favoriteFolders, newRootPath] };
+          }
+          return w;
+        });
+        return { notes, fileHandles, workspaces };
       });
 
       for (const m of idMap) useTabsStore.getState().renameTabId(m.oldId, m.newId, m.newTitle);
@@ -794,6 +831,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         notes: s.notes.filter((n) => !removedIds.has(n.id)),
         fileHandles,
         recentNoteIds: s.recentNoteIds.filter((id) => !removedIds.has(id)),
+        workspaces: s.workspaces.map((w) =>
+          w.id === workspaceId
+            ? { ...w, favoriteFolders: w.favoriteFolders.filter((p) => p !== path && !p.startsWith(`${path}/`)) }
+            : w
+        ),
       };
     });
     useTabsStore.getState().closeTabsMatching((id) => removedIds.has(id));

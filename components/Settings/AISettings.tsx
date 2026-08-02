@@ -1,7 +1,7 @@
 "use client";
 
 import { useSettingsStore } from "@/lib/store/useSettingsStore";
-import { ApiKeySettings } from "@/components/Settings/ApiKeySettings";
+import { ApiKeySettings } from "@/components/settings/ApiKeySettings";
 import { DEMO_USER_ID } from "@/lib/constants";
 import type { AIFeatureFlags } from "@/lib/types/ai";
 

@@ -3,13 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Menu, Plus, FolderPlus } from "lucide-react";
+import { Menu, Plus, FolderPlus, Folder } from "lucide-react";
 import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 import { useUIStore } from "@/lib/store/useUIStore";
 import { useTabsStore } from "@/lib/store/useTabsStore";
 import { IconButton } from "@/components/ui";
 import { FileContextMenu } from "@/components/workspace/FileContextMenu";
 import { FileTree } from "@/components/workspace/FileTree";
+import { pathDirname } from "@/lib/fs/fileSystemAccess";
 import type { Note } from "@/lib/types/note";
 
 function SidebarSection({ title, children }: { title: string; children: React.ReactNode }) {
@@ -62,6 +63,7 @@ export function Sidebar() {
   const activeTagFilter = useWorkspaceStore((s) => s.activeTagFilter);
   const setActiveTagFilter = useWorkspaceStore((s) => s.setActiveTagFilter);
   const openNewFileDialog = useUIStore((s) => s.openNewFileDialog);
+  const toggleFolder = useWorkspaceStore((s) => s.toggleFolder);
 
   const [contextMenu, setContextMenu] = useState<{ note: Note; x: number; y: number } | null>(null);
 
@@ -70,7 +72,25 @@ export function Sidebar() {
     setContextMenu({ note, x: e.clientX, y: e.clientY });
   }
 
+  function revealFolder(workspaceId: string, path: string) {
+    const ws = workspaces.find((w) => w.id === workspaceId);
+    if (!ws) return;
+    // Expand this folder and every ancestor along the way so it's
+    // actually visible in that workspace's Explorer, not just "open" in
+    // state while still hidden under a collapsed parent.
+    const segments = path.split("/");
+    let acc = "";
+    segments.forEach((segment, depth) => {
+      acc = acc ? `${acc}/${segment}` : segment;
+      const isExpanded = ws.expandedFolders[acc] ?? depth === 0;
+      if (!isExpanded) toggleFolder(workspaceId, acc);
+    });
+  }
+
   const favorites = notes.filter((n) => n.isFavorite);
+  const favoriteFolders = workspaces.flatMap((w) =>
+    w.favoriteFolders.map((path) => ({ workspaceId: w.id, workspaceName: w.name, path }))
+  );
   const recent = recentIds
     .map((id) => notes.find((n) => n.id === id))
     .filter((n): n is Note => Boolean(n));
@@ -117,9 +137,20 @@ export function Sidebar() {
       )}
 
       <SidebarSection title="Favorites">
-        {favorites.length === 0 && (
+        {favorites.length === 0 && favoriteFolders.length === 0 && (
           <p className="px-3 text-xs text-graphite dark:text-graphiteDark">No favorites yet.</p>
         )}
+        {favoriteFolders.map((f) => (
+          <button
+            key={`${f.workspaceId}::${f.path}`}
+            onClick={() => revealFolder(f.workspaceId, f.path)}
+            title={`${f.workspaceName} / ${f.path}`}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left text-ink dark:text-inkDark hover:bg-accentSoft dark:hover:bg-accentSoftDark"
+          >
+            <Folder size={14} className="text-graphite dark:text-graphiteDark shrink-0" />
+            <span className="truncate">{f.path.split("/").pop()}</span>
+          </button>
+        ))}
         {favorites.map((n) => (
           <NoteRow key={n.id} note={n} onContextMenu={handleContextMenu} />
         ))}

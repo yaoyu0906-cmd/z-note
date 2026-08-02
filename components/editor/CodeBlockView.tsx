@@ -52,7 +52,7 @@ export function CodeBlockView({ node, updateAttributes, deleteNode }: NodeViewPr
             </div>
           ))}
         </div>
-        <pre className="flex-1 overflow-x-auto py-3 pl-3 pr-4 m-0 bg-transparent">
+        <pre className="flex-1 overflow-x-auto zn-scroll py-3 pl-3 pr-4 m-0 bg-transparent">
           <NodeViewContent as="code" className={`language-${language} font-mono text-xs leading-5`} />
         </pre>
       </div>

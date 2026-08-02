@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Eye, Code2, Columns2, X } from "lucide-react";
 import { IconButton } from "@/components/ui";
-import { highlightToReact } from "@/lib/editor/highlightToReact";
+import { highlightToReact, trailingLineFiller } from "@/lib/editor/highlightToReact";
 
 type PageView = "preview" | "code" | "split";
 
@@ -99,14 +99,17 @@ export function PageBlock({ value, onChange, title, onTitleChange, onDelete }: P
                 </div>
               ))}
             </div>
-            <div className="code-block-view relative flex-1">
+            <div className="code-block-view code-overlay relative flex-1">
               <pre
                 ref={highlightRef}
                 aria-hidden
                 style={{ scrollbarGutter: "stable" }}
-                className="pointer-events-none absolute inset-0 overflow-auto p-3 m-0 font-mono text-xs leading-5 whitespace-pre-wrap break-words"
+                className="pointer-events-none absolute inset-0 overflow-auto zn-scroll p-3 m-0 font-mono text-xs leading-5 whitespace-pre"
               >
-                <code>{highlightToReact(code, "xml")}</code>
+                <code>
+                  {highlightToReact(code, "xml")}
+                  {trailingLineFiller(code)}
+                </code>
               </pre>
               <textarea
                 ref={textareaRef}
@@ -114,9 +117,10 @@ export function PageBlock({ value, onChange, title, onTitleChange, onDelete }: P
                 onChange={(e) => setCode(e.target.value)}
                 onScroll={syncScroll}
                 spellCheck={false}
+                wrap="off"
                 placeholder="<!-- Write HTML, CSS, and JS here -->"
                 style={{ scrollbarGutter: "stable" }}
-                className="relative w-full h-full min-h-[420px] resize-none p-3 font-mono text-xs leading-5 whitespace-pre-wrap break-words outline-none bg-transparent text-transparent caret-ink dark:caret-inkDark placeholder:text-graphite dark:placeholder:text-graphiteDark"
+                className="relative w-full h-full min-h-[420px] resize-none p-3 font-mono text-xs leading-5 whitespace-pre outline-none bg-transparent text-transparent caret-ink dark:caret-inkDark placeholder:text-graphite dark:placeholder:text-graphiteDark zn-scroll"
               />
             </div>
           </div>

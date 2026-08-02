@@ -9,7 +9,7 @@ import { EditableFilename } from "@/components/editor/EditableFilename";
 import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 import { useActiveEditorStore } from "@/lib/store/useActiveEditorStore";
 import { readFile, writeFile } from "@/lib/fs/fileSystemAccess";
-import { highlightToReact } from "@/lib/editor/highlightToReact";
+import { highlightToReact, trailingLineFiller } from "@/lib/editor/highlightToReact";
 import type { Note } from "@/lib/types/note";
 
 interface MarkdownEditorProps {
@@ -215,15 +215,18 @@ export function MarkdownEditor({
                   </div>
                 ))}
               </div>
-              <div className="code-block-view relative flex-1">
+              <div className="code-block-view code-overlay relative flex-1">
                 {isMarkdown && (
                   <pre
                     ref={highlightRef}
                     aria-hidden
                     style={{ scrollbarGutter: "stable" }}
-                    className="pointer-events-none absolute inset-0 overflow-auto p-4 m-0 font-mono text-sm leading-6 whitespace-pre-wrap break-words"
+                    className="pointer-events-none absolute inset-0 overflow-auto zn-scroll p-4 m-0 font-mono text-sm leading-6 whitespace-pre"
                   >
-                    <code>{highlightToReact(content, "markdown")}</code>
+                    <code>
+                      {highlightToReact(content, "markdown")}
+                      {trailingLineFiller(content)}
+                    </code>
                   </pre>
                 )}
                 <textarea
@@ -233,10 +236,11 @@ export function MarkdownEditor({
                   onKeyDown={handleKeyDown}
                   onScroll={syncGutterScroll}
                   spellCheck={false}
+                  wrap={isMarkdown ? "off" : undefined}
                   style={isMarkdown ? { scrollbarGutter: "stable" } : undefined}
                   className={
                     isMarkdown
-                      ? "relative w-full h-full resize-none p-4 font-mono text-sm leading-6 outline-none bg-transparent text-transparent caret-ink dark:caret-inkDark placeholder:text-graphite dark:placeholder:text-graphiteDark zn-scroll whitespace-pre-wrap break-words"
+                      ? "relative w-full h-full resize-none p-4 font-mono text-sm leading-6 outline-none bg-transparent text-transparent caret-ink dark:caret-inkDark placeholder:text-graphite dark:placeholder:text-graphiteDark zn-scroll whitespace-pre"
                       : "block w-full h-full resize-none p-4 font-mono text-sm leading-6 outline-none bg-paper dark:bg-paperDark text-ink dark:text-inkDark zn-scroll"
                   }
                   placeholder="Start writing…"

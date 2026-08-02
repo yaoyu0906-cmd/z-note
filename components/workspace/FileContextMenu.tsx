@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Check, Plus, Pencil, FolderInput, Trash2 } from "lucide-react";
+import { Check, Plus, Pencil, FolderInput, Trash2, Star } from "lucide-react";
 import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 import { useTabsStore } from "@/lib/store/useTabsStore";
 import { ColorPicker } from "@/components/editor/ColorPicker";
@@ -28,6 +28,7 @@ export function FileContextMenu({ note, position, onClose }: FileContextMenuProp
   const recolorTag = useWorkspaceStore((s) => s.recolorTag);
   const moveNote = useWorkspaceStore((s) => s.moveNote);
   const deleteNote = useWorkspaceStore((s) => s.deleteNote);
+  const toggleFavorite = useWorkspaceStore((s) => s.toggleFavorite);
 
   const [newTagLabel, setNewTagLabel] = useState("");
   const [renamingTagId, setRenamingTagId] = useState<string | null>(null);
@@ -99,10 +100,21 @@ export function FileContextMenu({ note, position, onClose }: FileContextMenuProp
       style={{ top: position.y, left: position.x }}
       className="fixed z-50 w-56 rounded-md border border-line dark:border-lineDark bg-white dark:bg-surfaceDark shadow-lg py-1.5"
     >
-      <p className="px-3 pb-1 text-[11px] uppercase tracking-wide text-graphite dark:text-graphiteDark">
+      <button
+        onClick={() => {
+          toggleFavorite(note.id);
+          onClose();
+        }}
+        className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left text-ink dark:text-inkDark hover:bg-accentSoft dark:hover:bg-accentSoftDark"
+      >
+        <Star size={14} className={`shrink-0 ${note.isFavorite ? "fill-current text-accent dark:text-accentDark" : ""}`} />
+        {note.isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+      </button>
+
+      <p className="px-3 pb-1 pt-1.5 text-[11px] uppercase tracking-wide text-graphite dark:text-graphiteDark border-t border-line dark:border-lineDark">
         Tags
       </p>
-      <div className="max-h-48 overflow-y-auto">
+      <div className="max-h-48 overflow-y-auto zn-scroll">
         {tags.map((tag) => (
           <div
             key={tag.id}

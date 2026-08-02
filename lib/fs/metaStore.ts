@@ -18,10 +18,12 @@ export interface WorkspaceMeta {
   noteTags: Record<string, string[]>;
   /** Note paths marked as favorite. */
   favorites: string[];
+  /** Folder paths marked as favorite. */
+  favoriteFolders: string[];
 }
 
 export function emptyMeta(workspaceId: string): WorkspaceMeta {
-  return { workspaceId, tags: [], noteTags: {}, favorites: [] };
+  return { workspaceId, tags: [], noteTags: {}, favorites: [], favoriteFolders: [] };
 }
 
 export async function readWorkspaceMeta(dirHandle: FileSystemDirectoryHandle): Promise<WorkspaceMeta | null> {
@@ -35,6 +37,7 @@ export async function readWorkspaceMeta(dirHandle: FileSystemDirectoryHandle): P
       tags: Array.isArray(parsed.tags) ? parsed.tags : [],
       noteTags: parsed.noteTags && typeof parsed.noteTags === "object" ? parsed.noteTags : {},
       favorites: Array.isArray(parsed.favorites) ? parsed.favorites : [],
+      favoriteFolders: Array.isArray(parsed.favoriteFolders) ? parsed.favoriteFolders : [],
     };
   } catch {
     // File doesn't exist yet, or isn't valid JSON — treat as "no metadata".

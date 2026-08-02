@@ -88,7 +88,7 @@ export function CommandPalette() {
           placeholder="Search notes or type a command…"
         />
       </div>
-      <div className="max-h-80 overflow-y-auto py-1">
+      <div className="max-h-80 overflow-y-auto zn-scroll py-1">
         {filteredCommands.length > 0 && (
           <div className="px-2 py-1">
             <p className="px-1 text-[11px] uppercase tracking-wide text-graphite dark:text-graphiteDark">Commands</p>

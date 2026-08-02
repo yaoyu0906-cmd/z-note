@@ -150,6 +150,33 @@ html.dark .code-block-view .hljs-deletion {
   font-weight: 600;
 }
 
+/* Overlay-technique code panes (Page Block, Markdown code view) render a
+   highlighted <pre> invisibly behind a real <textarea> so the caret and
+   selection stay native — but that only lines up pixel-for-pixel if every
+   character has the *exact* same width in both layers. Italic/bold token
+   styles shift monospace glyph advance widths just enough to make wrapped
+   lines drift, which is what made the caret look "offset". This strips
+   style/weight back to normal for those panes while keeping the colors. */
+.code-overlay .hljs-comment,
+.code-overlay .hljs-quote,
+.code-overlay .hljs-emphasis {
+  font-style: normal;
+}
+.code-overlay .hljs-strong {
+  font-weight: inherit;
+}
+
+/* The overlay pre/textarea pair must render text at IDENTICAL wrap
+   points (or not wrap at all) to stay aligned — see the comment above.
+   The Tailwind Typography plugin's `.prose pre` styling still applies
+   `white-space: pre-wrap` here despite the not-prose wrapper around the
+   Page block, silently reintroducing the exact divergence this whole
+   block exists to prevent. Force it decisively. */
+.code-overlay pre,
+.code-overlay textarea {
+  white-space: pre !important;
+}
+
 /* ---- Quote speaker/attribution field ---- */
 .quote-speaker {
   margin-top: 0.25rem;

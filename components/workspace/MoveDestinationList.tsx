@@ -16,7 +16,7 @@ export function MoveDestinationList({ excludeWorkspaceId, excludePath, onSelect 
   const workspaces = useWorkspaceStore((s) => s.workspaces);
 
   return (
-    <div className="max-h-52 overflow-y-auto">
+    <div className="max-h-52 overflow-y-auto zn-scroll">
       {workspaces.map((ws) => {
         const paths = ws.folderTree ? flattenFolderPaths(ws.folderTree) : [""];
         const visible = paths.filter(

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { FilePlus, FolderPlus, FolderInput, Trash2 } from "lucide-react";
+import { FilePlus, FolderPlus, FolderInput, Trash2, Star } from "lucide-react";
 import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 import { useTabsStore } from "@/lib/store/useTabsStore";
 import { useUIStore } from "@/lib/store/useUIStore";
@@ -30,6 +30,10 @@ export function FolderContextMenu({
   const openNewFileDialog = useUIStore((s) => s.openNewFileDialog);
   const moveFolder = useWorkspaceStore((s) => s.moveFolder);
   const deleteFolder = useWorkspaceStore((s) => s.deleteFolder);
+  const toggleFolderFavorite = useWorkspaceStore((s) => s.toggleFolderFavorite);
+  const isFavorite = useWorkspaceStore((s) =>
+    s.workspaces.find((w) => w.id === workspaceId)?.favoriteFolders.includes(path) ?? false
+  );
 
   const [showMoveList, setShowMoveList] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -87,6 +91,17 @@ export function FolderContextMenu({
       <p className="px-3 pb-1 text-[11px] uppercase tracking-wide text-graphite dark:text-graphiteDark truncate">
         {name}
       </p>
+
+      <button
+        onClick={() => {
+          toggleFolderFavorite(workspaceId, path);
+          onClose();
+        }}
+        className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left text-ink dark:text-inkDark hover:bg-accentSoft dark:hover:bg-accentSoftDark"
+      >
+        <Star size={14} className={`shrink-0 ${isFavorite ? "fill-current text-accent dark:text-accentDark" : ""}`} />
+        {isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+      </button>
 
       <button
         onClick={() => {

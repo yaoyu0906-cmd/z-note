@@ -21,6 +21,18 @@ function renderNode(node: HastNode, key: number): ReactNode {
   );
 }
 
+/** Textareas render an extra empty visual line when their value ends with
+ *  "\n" (so there's somewhere to keep typing) — a <pre> with the exact
+ *  same text content doesn't reliably do the same, even with identical
+ *  CSS. That's a real, measurable height difference (one line-height),
+ *  and it's what let the pre's scrollable range fall short of the
+ *  textarea's, clamping short and drifting everything below it once
+ *  scrolled near the bottom. A trailing zero-width space forces the pre
+ *  to allocate that same trailing line box. */
+export function trailingLineFiller(code: string): string {
+  return code.endsWith("\n") ? "\u200B" : "";
+}
+
 /** Highlights `code` as `language` and returns React nodes ready to render
  *  inside a <pre><code>. Falls back to plain text if the language/content
  *  can't be highlighted (e.g. malformed markup mid-edit). */
