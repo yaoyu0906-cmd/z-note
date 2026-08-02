@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { AppearanceSettings } from "@/components/settings/AppearanceSettings";
-import { AISettings } from "@/components/settings/AISettings";
-import { ShortcutSettings } from "@/components/settings/ShortcutSettings";
-import { WorkspaceSettings } from "@/components/settings/WorkspaceSettings";
+import { AppearanceSettings } from "@/components/Settings/AppearanceSettings";
+import { AISettings } from "@/components/Settings/AISettings";
+import { ShortcutSettings } from "@/components/Settings/ShortcutSettings";
+import { WorkspaceSettings } from "@/components/Settings/WorkspaceSettings";
 
 const SECTIONS = [
   { id: "appearance", label: "Appearance" },
