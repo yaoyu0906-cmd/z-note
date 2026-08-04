@@ -166,6 +166,24 @@ html.dark .code-block-view .hljs-deletion {
   font-weight: inherit;
 }
 
+/* The overlay textarea's own text must stay invisible year-round (only the
+   highlighted <pre> underneath should ever be seen) — but with no custom
+   ::selection rule, browsers fall back to their own default selection
+   styling, which forces a contrasting foreground color (e.g. white in
+   dark mode) for whatever's selected, regardless of the element's own
+   `color: transparent`. That silently reveals the raw textarea text
+   layered on top of the pre's own rendering of the same characters —
+   two visibly different copies of the same code. Defining our own rule
+   (background only) keeps selection visible while leaving `color`
+   unset, which falls back to the textarea's own transparent color
+   instead of a browser-forced one. */
+.code-overlay textarea::selection {
+  background-color: rgba(47, 93, 80, 0.25);
+}
+html.dark .code-overlay textarea::selection {
+  background-color: rgba(154, 197, 182, 0.25);
+}
+
 /* The overlay pre/textarea pair must render text at IDENTICAL wrap
    points (or not wrap at all) to stay aligned — see the comment above.
    The Tailwind Typography plugin's `.prose pre` styling still applies

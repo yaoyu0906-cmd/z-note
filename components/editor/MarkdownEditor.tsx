@@ -66,6 +66,7 @@ export function MarkdownEditor({
     const next = e.target.value;
     setContent(next);
     clear();
+    requestAnimationFrame(syncGutterScroll);
 
     const cursor = e.target.selectionStart;
     const textBeforeCursor = next.slice(0, cursor);

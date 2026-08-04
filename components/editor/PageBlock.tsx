@@ -114,7 +114,10 @@ export function PageBlock({ value, onChange, title, onTitleChange, onDelete }: P
               <textarea
                 ref={textareaRef}
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
+                onChange={(e) => {
+                  setCode(e.target.value);
+                  requestAnimationFrame(syncScroll);
+                }}
                 onScroll={syncScroll}
                 spellCheck={false}
                 wrap="off"
