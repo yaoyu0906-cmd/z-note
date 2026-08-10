@@ -5,7 +5,7 @@
  * for full cross-platform local file access later.
  */
 
-export type NoteFileType = "md" | "txt" | "note";
+export type NoteFileType = "md" | "txt" | "note" | "canvas";
 
 export interface OpenFile {
   handle: FileSystemFileHandle;
@@ -21,6 +21,7 @@ export function inferType(fileName: string): NoteFileType | null {
   if (fileName.endsWith(".md")) return "md";
   if (fileName.endsWith(".txt")) return "txt";
   if (fileName.endsWith(".note")) return "note";
+  if (fileName.endsWith(".canvas")) return "canvas";
   return null;
 }
 

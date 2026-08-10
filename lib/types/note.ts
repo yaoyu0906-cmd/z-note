@@ -2,7 +2,7 @@ import type { NoteFileType } from "@/lib/fs/fileSystemAccess";
 
 /** Re-exported so feature code can import a single "note" domain type
  *  instead of reaching into the fs layer directly. */
-export type NoteType = NoteFileType | "canvas";
+export type NoteType = NoteFileType;
 
 export interface Tag {
   id: string;

@@ -8,22 +8,19 @@ import { useSettingsStore } from "@/lib/store/useSettingsStore";
 import { useActiveEditorStore } from "@/lib/store/useActiveEditorStore";
 import type { ShortcutAction } from "@/lib/types/shortcuts";
 
-/** Normalizes a KeyboardEvent into the same "Ctrl+Shift+N" style used in ShortcutBinding.keys. */
-function eventToKeyString(e: KeyboardEvent): string {
-  const parts: string[] = [];
-  if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
-  if (e.shiftKey) parts.push("Shift");
-  const key = e.key === "`" ? "`" : e.key === "\\" ? "\\" : e.key.toUpperCase();
-  parts.push(key);
-  return parts.join("+");
-}
+import { eventToKeyString } from "@/lib/keyboard/keyString";
 
 export function useKeyboardShortcuts() {
   const router = useRouter();
   const shortcuts = useSettingsStore((s) => s.shortcuts);
   const { setCommandPaletteOpen, setQuickNoteOpen, openNewFileDialog, toggleSidebar, setAIPanelOpen } =
     useUIStore();
-  const { toggleSplit, closeTab, activeTabByPane } = useTabsStore();
+  const { toggleSplit, closeTab, activeTabByPane, tabs, setActiveTab } = useTabsStore();
+
+  function goToTab(tabId: string, type: string) {
+    setActiveTab(tabId);
+    router.push(`${type === "canvas" ? "/canvas" : "/note"}/${encodeURIComponent(tabId)}`);
+  }
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -77,6 +74,17 @@ export function useKeyboardShortcuts() {
         case "save-note":
           useActiveEditorStore.getState().triggerSave();
           break;
+        case "next-tab":
+        case "prev-tab": {
+          if (tabs.length < 2) break;
+          const currentId = activeTabByPane.primary;
+          const idx = tabs.findIndex((t) => t.id === currentId);
+          const delta = action === "next-tab" ? 1 : -1;
+          const nextIdx = idx === -1 ? 0 : (idx + delta + tabs.length) % tabs.length;
+          const nextTab = tabs[nextIdx];
+          if (nextTab) goToTab(nextTab.id, nextTab.type);
+          break;
+        }
       }
     }
 
@@ -93,5 +101,7 @@ export function useKeyboardShortcuts() {
     toggleSidebar,
     closeTab,
     activeTabByPane,
+    tabs,
+    setActiveTab,
   ]);
 }

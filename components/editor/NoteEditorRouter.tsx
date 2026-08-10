@@ -19,7 +19,7 @@ export function NoteEditorRouter({ note }: NoteEditorRouterProps) {
 
   switch (note.type) {
     case "canvas":
-      return <CanvasEditor note={note} />;
+      return <CanvasEditor note={note} handle={handle} initialContent={initialContent} />;
     case "note":
       return <RichNoteEditor note={note} handle={handle} initialContent={initialContent} />;
     case "md":

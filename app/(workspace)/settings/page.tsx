@@ -4,12 +4,14 @@ import { useState } from "react";
 import { AppearanceSettings } from "@/components/settings/AppearanceSettings";
 import { AISettings } from "@/components/settings/AISettings";
 import { ShortcutSettings } from "@/components/settings/ShortcutSettings";
+import { CanvasSettings } from "@/components/settings/CanvasSettings";
 import { WorkspaceSettings } from "@/components/settings/WorkspaceSettings";
 
 const SECTIONS = [
   { id: "appearance", label: "Appearance" },
   { id: "ai", label: "AI" },
   { id: "shortcuts", label: "Keyboard Shortcuts" },
+  { id: "canvas", label: "Canvas" },
   { id: "workspace", label: "Workspace" },
 ] as const;
 
@@ -40,6 +42,7 @@ export default function SettingsPage() {
         {section === "appearance" && <AppearanceSettings />}
         {section === "ai" && <AISettings />}
         {section === "shortcuts" && <ShortcutSettings />}
+        {section === "canvas" && <CanvasSettings />}
         {section === "workspace" && <WorkspaceSettings />}
       </div>
     </div>

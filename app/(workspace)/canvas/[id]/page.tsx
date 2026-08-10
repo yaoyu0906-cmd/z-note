@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 import { useTabsStore } from "@/lib/store/useTabsStore";
-import { CanvasEditor } from "@/components/editor/CanvasEditor";
+import { NoteEditorRouter } from "@/components/editor/NoteEditorRouter";
 import type { Note } from "@/lib/types/note";
 
 function draftCanvas(id: string): Note {
@@ -43,5 +43,5 @@ export default function CanvasPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note.id]);
 
-  return <CanvasEditor note={note} />;
+  return <NoteEditorRouter note={note} />;
 }

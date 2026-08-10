@@ -86,7 +86,7 @@ async function loadWorkspaceContents(dirHandle: FileSystemDirectoryHandle) {
     fileHandles[id] = f.handle;
     return {
       id,
-      title: pathBasename(f.name).replace(/\.(md|txt|note)$/, ""),
+      title: pathBasename(f.name).replace(/\.(md|txt|note|canvas)$/, ""),
       type: f.type,
       path: f.name,
       workspaceId,
@@ -351,7 +351,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       const prev = prevById.get(id);
       return {
         id,
-        title: pathBasename(f.name).replace(/\.(md|txt|note)$/, ""),
+        title: pathBasename(f.name).replace(/\.(md|txt|note|canvas)$/, ""),
         type: f.type,
         path: f.name,
         workspaceId,
@@ -459,7 +459,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
       const newPath = targetFolderPath ? `${targetFolderPath}/${finalName}` : finalName;
       const newId = compositeId(targetWorkspaceId, newPath);
-      const newTitle = finalName.replace(/\.(md|txt|note)$/, "");
+      const newTitle = finalName.replace(/\.(md|txt|note|canvas)$/, "");
 
       set((s) => {
         const fileHandles = { ...s.fileHandles };
@@ -552,7 +552,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
             const oldId = compositeId(source.workspaceId, childSrcPath);
             const newId = compositeId(targetWorkspaceId, childDestPath);
             newFileHandles[newId] = newFileHandle;
-            idMap.push({ oldId, newId, newPath: childDestPath, newTitle: name.replace(/\.(md|txt|note)$/, "") });
+            idMap.push({ oldId, newId, newPath: childDestPath, newTitle: name.replace(/\.(md|txt|note|canvas)$/, "") });
           }
         }
       }
@@ -686,7 +686,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     let hasLocalHandle = false;
     let noteId = id;
 
-    if (entry && type !== "canvas") {
+    if (entry) {
       try {
         // Resolve (or create) the target folder so notes can be created
         // directly inside a nested Explorer folder, not just the root.
