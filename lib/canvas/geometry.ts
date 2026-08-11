@@ -197,6 +197,20 @@ export function pathNearPoint(points: Point[], point: Point, radius: number): bo
   return false;
 }
 
+/** Whether the Eraser tool's brush (a circle of `radius`) touches an
+ *  element. Point-path elements (line/arrow/freehand/highlighter) use a
+ *  distance-to-segment test against `radius`, since a raw hit test would
+ *  require landing exactly on the stroke; box-shaped elements (shapes,
+ *  text, sticky, table, image, file-link) reuse the normal shape-aware
+ *  hit test, so erasing a rectangle/ellipse/diamond respects its actual
+ *  outline rather than its full bounding box. */
+export function eraserHitsElement(el: CanvasElement, point: Point, radius: number): boolean {
+  if (el.type === "arrow" || el.type === "line" || el.type === "freehand" || el.type === "highlighter") {
+    return pathNearPoint(el.points, point, radius);
+  }
+  return hitTestElement(el, point);
+}
+
 /** Builds a smooth SVG path string through a set of points using quadratic
  *  curves between successive midpoints — a simple, well-known technique
  *  for turning a raw polyline into a natural-looking stroke. */

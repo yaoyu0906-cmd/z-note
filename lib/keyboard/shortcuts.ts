@@ -3,6 +3,7 @@ import type { ShortcutBinding, CanvasShortcutBinding } from "@/lib/types/shortcu
 export const DEFAULT_SHORTCUTS: ShortcutBinding[] = [
   { id: "new-note", label: "New Note", keys: "Ctrl+N", editable: true },
   { id: "quick-note", label: "Quick Note", keys: "Ctrl+Shift+N", editable: true },
+  { id: "scratch-pad", label: "Scratch Pad", keys: "Ctrl+Shift+S", editable: true },
   { id: "command-palette", label: "Command Palette", keys: "Ctrl+P", editable: true },
   { id: "ai-panel", label: "AI", keys: "Ctrl+K", editable: true },
   { id: "toggle-page-view", label: "Toggle Page Code/Preview", keys: "Ctrl+`", editable: true },

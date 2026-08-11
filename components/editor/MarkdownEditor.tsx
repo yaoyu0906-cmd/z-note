@@ -8,8 +8,9 @@ import { complete } from "@/lib/ai/providers";
 import { EditableFilename } from "@/components/editor/EditableFilename";
 import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 import { useActiveEditorStore } from "@/lib/store/useActiveEditorStore";
-import { readFile, writeFile } from "@/lib/fs/fileSystemAccess";
+import { readFile, writeFile, pickSaveLocation } from "@/lib/fs/fileSystemAccess";
 import { highlightToReact, trailingLineFiller } from "@/lib/editor/highlightToReact";
+import { SCRATCH_PAD_NOTE_ID } from "@/lib/scratchPad";
 import type { Note } from "@/lib/types/note";
 
 interface MarkdownEditorProps {
@@ -43,6 +44,7 @@ export function MarkdownEditor({
 
   const renameNote = useWorkspaceStore((s) => s.renameNote);
   const setNoteContent = useWorkspaceStore((s) => s.setNoteContent);
+  const registerFileHandle = useWorkspaceStore((s) => s.registerFileHandle);
   const registerSave = useActiveEditorStore((s) => s.registerSave);
 
   const { suggestion, request, clear } = useGhostText({ provider, apiKey, model });
@@ -53,14 +55,27 @@ export function MarkdownEditor({
     readFile(handle).then(setContent);
   }, [handle]);
 
-  // Register Ctrl+S for whichever note is currently mounted.
+  // Register Ctrl+S for whichever note is currently mounted. The Scratch
+  // Pad is the one case with no file of its own yet — its first save
+  // opens the native "Save As" picker instead of the normal silent
+  // writeFile/setNoteContent path. Once that succeeds, the handle is
+  // registered under this note's id, so every save after that (in this
+  // tab, this session) goes through the exact same writeFile(handle, ...)
+  // path every other note already uses.
   useEffect(() => {
     registerSave(async () => {
+      if (note.id === SCRATCH_PAD_NOTE_ID && !handle) {
+        const picked = await pickSaveLocation(`${note.title || "Untitled"}.md`);
+        if (!picked) return; // user cancelled — pad stays unsaved/ephemeral
+        await writeFile(picked, content);
+        registerFileHandle(note.id, picked);
+        return;
+      }
       if (handle) await writeFile(handle, content);
       else setNoteContent(note.id, content);
     });
     return () => registerSave(null);
-  }, [handle, content, note.id, registerSave, setNoteContent]);
+  }, [handle, content, note.id, note.title, registerSave, setNoteContent, registerFileHandle]);
 
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const next = e.target.value;

@@ -161,6 +161,12 @@ interface WorkspaceState {
   refreshWorkspaceTreeOnly: (workspaceId: string) => Promise<void>;
   setActiveWorkspace: (workspaceId: string) => void;
   getFileHandle: (noteId: string) => FileSystemFileHandle | undefined;
+  /** Registers a handle for a note that didn't come from the normal
+   *  workspace-open/createNote flow — currently only used by the Scratch
+   *  Pad's first "Save As", so subsequent Ctrl+S presses in that tab can
+   *  go through the same silent writeFile(handle, ...) path every other
+   *  note already uses. */
+  registerFileHandle: (noteId: string, handle: FileSystemFileHandle) => void;
   toggleFolder: (workspaceId: string, path: string) => void;
   toggleFolderFavorite: (workspaceId: string, path: string) => void;
   createFolder: (workspaceId: string, parentPath: string, name: string) => Promise<void>;
@@ -429,6 +435,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   },
 
   getFileHandle: (noteId) => get().fileHandles[noteId],
+  registerFileHandle: (noteId, handle) => set((s) => ({ fileHandles: { ...s.fileHandles, [noteId]: handle } })),
 
   moveNote: async (noteId, targetWorkspaceId, targetFolderPath) => {
     const state = get();
@@ -628,12 +635,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   addQuickNote: async (text) => {
     const id = `quick-${Date.now()}`;
     const now = new Date().toISOString();
-    const title = text.slice(0, 60) || "Untitled quick note";
-    const html = `<p>${text.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>`;
+    // Title comes from the first line only — using the raw multi-line text
+    // here was the bug: embedded newlines made it into the sanitized file
+    // name, which the File System Access API rejects, so any quick note
+    // with more than one line silently failed to save to disk. The saved
+    // file still gets the full multi-line `text` below.
+    const firstLine = text.split("\n")[0].trim();
+    const title = firstLine.slice(0, 60) || "Untitled quick note";
 
     const state = get();
     const entry = state.workspaces.find((w) => w.id === state.activeWorkspaceId) ?? state.workspaces[0];
-    let path = `${id}.note`;
+    let path = `${id}.txt`;
     let hasLocalHandle = false;
     let noteId = id;
     let workspaceId: string | undefined;
@@ -641,9 +653,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     if (entry) {
       try {
         const quickDir = await getOrCreateSubdirectory(entry.dirHandle, "Quick Notes");
-        const fileName = `${sanitizeFileName(title) || id}.note`;
+        const fileName = `${sanitizeFileName(title) || id}.txt`;
         const handle = await createFile(quickDir, fileName);
-        await writeFile(handle, html);
+        await writeFile(handle, text);
         hasLocalHandle = true;
         path = `Quick Notes/${fileName}`;
         workspaceId = entry.id;
@@ -657,7 +669,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const note: Note = {
       id: noteId,
       title,
-      type: "note",
+      type: "txt",
       path,
       workspaceId,
       tagIds: [],
@@ -669,7 +681,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
     set((s) => ({
       notes: [note, ...s.notes],
-      noteContents: { ...s.noteContents, [noteId]: html },
+      noteContents: { ...s.noteContents, [noteId]: text },
     }));
     if (hasLocalHandle && workspaceId) await get().refreshWorkspace(workspaceId);
   },

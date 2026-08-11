@@ -86,12 +86,17 @@ export interface ImageElement extends BaseElement {
 /** A simple grid of editable text cells. Column/row widths aren't
  *  persisted individually — the grid is always divided evenly across the
  *  element's width/height, which keeps the saved shape simple and the
- *  resize behavior identical to every other box element. */
+ *  resize behavior identical to every other box element. Cell text reuses
+ *  the same styling fields as TextElement/StickyElement (fontSize) plus a
+ *  dedicated textColor, kept separate from strokeColor since that already
+ *  means "border/grid line color" for a table. */
 export interface TableElement extends BaseElement {
   type: "table";
   rows: number;
   cols: number;
   cells: string[][]; // cells[row][col], always rows x cols
+  fontSize: number;
+  textColor: string;
 }
 
 /** A link to a file on the user's machine. Rendered as a small card;
@@ -152,9 +157,10 @@ export function isPathElement(el: CanvasElement): el is LineElement | FreehandEl
   return el.type === "arrow" || el.type === "line" || el.type === "freehand" || el.type === "highlighter";
 }
 
-/** "Drawings" in the Eraser-tool sense — freehand ink, either plain or
- *  highlighter. Shapes, text, tables, images, and file links are never
- *  erased by the Eraser tool, only deleted explicitly. */
+/** Freehand ink, either plain or highlighter — kept distinct from shapes/
+ *  text/etc. for anywhere that specifically means "a drawn stroke" (not
+ *  currently used by the Eraser tool, which erases any element type it
+ *  touches; see lib/canvas/geometry.ts's eraserHitsElement). */
 export function isDrawingElement(el: CanvasElement): el is FreehandElement | HighlighterElement {
   return el.type === "freehand" || el.type === "highlighter";
 }

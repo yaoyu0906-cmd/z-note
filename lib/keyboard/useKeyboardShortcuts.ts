@@ -9,6 +9,7 @@ import { useActiveEditorStore } from "@/lib/store/useActiveEditorStore";
 import type { ShortcutAction } from "@/lib/types/shortcuts";
 
 import { eventToKeyString } from "@/lib/keyboard/keyString";
+import { SCRATCH_PAD_NOTE_ID } from "@/lib/scratchPad";
 
 export function useKeyboardShortcuts() {
   const router = useRouter();
@@ -37,6 +38,9 @@ export function useKeyboardShortcuts() {
           break;
         case "quick-note":
           setQuickNoteOpen(true);
+          break;
+        case "scratch-pad":
+          router.push(`/note/${SCRATCH_PAD_NOTE_ID}`);
           break;
         case "command-palette":
           setCommandPaletteOpen(true);

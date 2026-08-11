@@ -114,9 +114,12 @@ export function useCanvasEditorState(initialDocument: CanvasDocument) {
   const canRedo = future.current.length > 0;
 
   const addElement = useCallback(
-    (el: CanvasElement) => {
+    (el: CanvasElement, opts: { select?: boolean } = {}) => {
       setElements((prev) => [...prev, el]);
-      setSelectedIds(new Set([el.id]));
+      // Drag-drawn elements (shapes/lines/freehand/highlighter/table) pass
+      // select: false so no selection box appears while — or immediately
+      // after — the stroke/drag is still in progress.
+      if (opts.select !== false) setSelectedIds(new Set([el.id]));
     },
     [setElements]
   );

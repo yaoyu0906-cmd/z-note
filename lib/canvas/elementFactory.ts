@@ -79,6 +79,11 @@ export function createBoxElement(
         rows: DEFAULT_TABLE_ROWS,
         cols: DEFAULT_TABLE_COLS,
         cells: Array.from({ length: DEFAULT_TABLE_ROWS }, () => Array.from({ length: DEFAULT_TABLE_COLS }, () => "")),
+        // Reuses the same text-styling fields/defaults as text/sticky
+        // elements (font size + the same default Catppuccin text color)
+        // rather than inventing a separate table-text style system.
+        fontSize: style.fontSize,
+        textColor: style.strokeColor,
       };
     case "image":
       return null; // images are inserted via file picker, not drag-drawn

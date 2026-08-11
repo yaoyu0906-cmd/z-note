@@ -21,7 +21,6 @@ interface CanvasElementViewProps {
   cellEditValue: string;
   onCellEditChange: (value: string) => void;
   onCommitCellEdit: () => void;
-  onOpenFileLink: (element: CanvasElement) => void;
 }
 
 function diamondPoints(x: number, y: number, w: number, h: number): string {
@@ -48,7 +47,6 @@ export function CanvasElementView({
   cellEditValue,
   onCellEditChange,
   onCommitCellEdit,
-  onOpenFileLink,
 }: CanvasElementViewProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const cellInputRef = useRef<HTMLInputElement>(null);
@@ -232,15 +230,18 @@ export function CanvasElementView({
                         ref={cellInputRef}
                         value={cellEditValue}
                         onChange={(e) => onCellEditChange(e.target.value)}
+                        onPointerDown={(e) => e.stopPropagation()}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === "Escape" || e.key === "Tab") onCommitCellEdit();
                           e.stopPropagation();
                         }}
-                        className="w-full h-full bg-transparent outline-none text-xs font-sans"
-                        style={{ color: "var(--canvas-table-text, currentColor)" }}
+                        style={{ fontSize: el.fontSize, color: el.textColor }}
+                        className="w-full h-full bg-transparent outline-none font-sans"
                       />
                     ) : (
-                      <span className="w-full truncate text-xs font-sans text-ink dark:text-inkDark">{cellText}</span>
+                      <span style={{ fontSize: el.fontSize, color: el.textColor }} className="w-full truncate font-sans">
+                        {cellText}
+                      </span>
                     )}
                   </div>
                 </foreignObject>
@@ -254,23 +255,12 @@ export function CanvasElementView({
     case "file-link": {
       const Icon = fileLinkIcon(el.extension);
       return (
-        <foreignObject x={el.x} y={el.y} width={el.width} height={el.height} style={{ opacity: el.opacity }}>
+        <foreignObject x={el.x} y={el.y} width={el.width} height={el.height} style={{ opacity: el.opacity, pointerEvents: "none" }}>
           <div
             // @ts-expect-error -- xmlns is valid on a raw div inside foreignObject
             xmlns="http://www.w3.org/1999/xhtml"
-            className="w-full h-full flex items-center gap-2 px-2.5 rounded-md border bg-white dark:bg-surfaceDark cursor-pointer"
+            className="w-full h-full flex items-center gap-2 px-2.5 rounded-md border bg-white dark:bg-surfaceDark"
             style={{ borderColor: el.strokeColor }}
-            onPointerDown={(e) => {
-              // Prevent this from also starting a canvas element-drag —
-              // CanvasSurface still owns move/drag via its own pointerdown
-              // on the <svg>; opening happens on a genuine click (handled
-              // by CanvasSurface's click-vs-drag distance check), not here.
-              e.stopPropagation();
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenFileLink(el);
-            }}
           >
             <Icon size={16} className="shrink-0 text-graphite dark:text-graphiteDark" />
             <span className="truncate text-xs font-sans text-ink dark:text-inkDark">{el.fileName}</span>
@@ -297,6 +287,7 @@ export function CanvasElementView({
                 autoFocus
                 value={editValue}
                 onChange={(e) => onEditChange(e.target.value)}
+                onPointerDown={(e) => e.stopPropagation()}
                 onKeyDown={(e) => {
                   if (e.key === "Escape") onCommitEdit();
                   e.stopPropagation();

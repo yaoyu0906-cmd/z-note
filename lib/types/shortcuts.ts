@@ -1,6 +1,7 @@
 export type ShortcutAction =
   | "new-note"
   | "quick-note"
+  | "scratch-pad"
   | "command-palette"
   | "ai-panel"
   | "toggle-page-view"

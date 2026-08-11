@@ -12,25 +12,29 @@ test.describe("Canvas highlighter and eraser", () => {
     await expect(stroke).toHaveAttribute("stroke-linecap", "butt");
   });
 
-  test("eraser removes a freehand drawing but leaves shapes alone", async ({ page }) => {
+  test("eraser removes freehand drawings and shapes alike", async ({ page }) => {
     await createCanvasNote(page);
 
-    // Draw a rectangle (should survive the eraser).
+    // Draw a rectangle at one location.
     await page.getByRole("button", { name: /^Rectangle \(/ }).click();
     await dragOnCanvas(page, { x: 400, y: 400 }, { x: 500, y: 460 });
 
-    // Draw a freehand scribble at a distinct location (should be erased).
+    // Draw a freehand scribble at a distinct location.
     await page.getByRole("button", { name: /^Draw \(/ }).click();
     await dragOnCanvas(page, { x: 100, y: 100 }, { x: 180, y: 140 });
 
-    await expect(canvasSurface(page).locator("rect")).toHaveCount(1); // the rectangle
-    await expect(canvasSurface(page).locator("path")).toHaveCount(1); // the freehand stroke
+    await expect(canvasSurface(page).locator("rect")).toHaveCount(1);
+    await expect(canvasSurface(page).locator("path")).toHaveCount(1);
 
+    // Erasing over the freehand stroke only removes that stroke.
     await page.getByRole("button", { name: /^Eraser \(/ }).click();
     await dragOnCanvas(page, { x: 100, y: 100 }, { x: 180, y: 140 });
-
     await expect(canvasSurface(page).locator("path")).toHaveCount(0);
     await expect(canvasSurface(page).locator("rect")).toHaveCount(1);
+
+    // The eraser also removes shapes it touches (not drawings-only anymore).
+    await dragOnCanvas(page, { x: 420, y: 420 }, { x: 480, y: 440 });
+    await expect(canvasSurface(page).locator("rect")).toHaveCount(0);
   });
 
   test("erasing an entire stroke undoes in a single step", async ({ page }) => {

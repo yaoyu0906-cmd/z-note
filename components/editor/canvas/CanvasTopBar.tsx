@@ -1,13 +1,17 @@
 "use client";
 
-import { Undo2, Redo2, Grid3x3, ZoomIn, ZoomOut, Maximize } from "lucide-react";
+import { Undo2, Redo2, Grid3x3, ZoomIn, ZoomOut, Maximize, Pencil, Eye } from "lucide-react";
 import { EditableFilename } from "@/components/editor/EditableFilename";
 import { IconButton } from "@/components/ui";
 import type { Note } from "@/lib/types/note";
 
+type CanvasMode = "edit" | "view";
+
 interface CanvasTopBarProps {
   note: Note;
   onRename: (updates: { title?: string; path?: string }) => void;
+  mode: CanvasMode;
+  onModeChange: (mode: CanvasMode) => void;
   zoom: number;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -24,6 +28,8 @@ interface CanvasTopBarProps {
 export function CanvasTopBar({
   note,
   onRename,
+  mode,
+  onModeChange,
   zoom,
   onZoomIn,
   onZoomOut,
@@ -49,6 +55,15 @@ export function CanvasTopBar({
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
+        <IconButton label="Edit mode" active={mode === "edit"} onClick={() => onModeChange("edit")}>
+          <Pencil size={15} />
+        </IconButton>
+        <IconButton label="View mode" active={mode === "view"} onClick={() => onModeChange("view")}>
+          <Eye size={15} />
+        </IconButton>
+
+        <div className="w-px h-5 bg-line dark:bg-lineDark mx-1" />
+
         <IconButton label="Undo" onClick={onUndo}>
           <Undo2 size={15} className={canUndo ? "" : "opacity-35"} />
         </IconButton>

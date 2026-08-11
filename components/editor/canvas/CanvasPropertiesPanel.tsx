@@ -63,6 +63,7 @@ export function CanvasPropertiesPanel({
 }: CanvasPropertiesPanelProps) {
   const [strokePickerOpen, setStrokePickerOpen] = useState(false);
   const [fillPickerOpen, setFillPickerOpen] = useState(false);
+  const [tableTextColorPickerOpen, setTableTextColorPickerOpen] = useState(false);
 
   const hasSelection = selectedElements.length > 0;
   const single = selectedElements.length === 1 ? selectedElements[0] : null;
@@ -79,7 +80,12 @@ export function CanvasPropertiesPanel({
   const showFill =
     !hasSelection ||
     selectedElements.some((el) => !["arrow", "line", "freehand", "highlighter", "file-link"].includes(el.type));
-  const showFont = single && isTextEditable(single);
+  // Table cell text reuses the same font-size control as text/sticky
+  // elements; only the alignment buttons stay text-only (tables don't
+  // have a textAlign field — cells are always left-aligned).
+  const showFontSize = single && (isTextEditable(single) || single.type === "table");
+  const showTextAlign = single?.type === "text";
+  const showTableTextColor = single?.type === "table";
   const showStroke = !hasSelection || selectedElements.some((el) => el.type !== "image");
   const showTableControls = single?.type === "table";
   const showImageControls = single?.type === "image";
@@ -179,7 +185,7 @@ export function CanvasPropertiesPanel({
         />
       </div>
 
-      {showFont && single && isTextEditable(single) && (
+      {showFontSize && single && (isTextEditable(single) || single.type === "table") && (
         <div className="space-y-1.5">
           <p className="text-xs text-graphite dark:text-graphiteDark">Text</p>
           <input
@@ -190,25 +196,52 @@ export function CanvasPropertiesPanel({
             onChange={(e) => onElementChange({ fontSize: Number(e.target.value) } as Partial<CanvasElement>)}
             className="w-full accent-accent"
           />
-          <div className="flex gap-1">
-            {(["left", "center", "right"] as const).map((align) => {
-              const Icon = align === "left" ? AlignLeft : align === "center" ? AlignCenter : AlignRight;
-              const isActive = single.type === "text" && single.textAlign === align;
-              return (
-                <button
-                  key={align}
-                  onClick={() => onElementChange({ textAlign: align } as Partial<CanvasElement>)}
-                  className={`flex-1 flex items-center justify-center h-7 rounded border ${
-                    isActive
-                      ? "border-accent text-accent dark:border-accentDark dark:text-accentDark"
-                      : "border-line dark:border-lineDark text-graphite dark:text-graphiteDark hover:bg-accentSoft dark:hover:bg-accentSoftDark"
-                  }`}
-                >
-                  <Icon size={13} />
-                </button>
-              );
-            })}
+          {showTextAlign && (
+            <div className="flex gap-1">
+              {(["left", "center", "right"] as const).map((align) => {
+                const Icon = align === "left" ? AlignLeft : align === "center" ? AlignCenter : AlignRight;
+                const isActive = single.type === "text" && single.textAlign === align;
+                return (
+                  <button
+                    key={align}
+                    onClick={() => onElementChange({ textAlign: align } as Partial<CanvasElement>)}
+                    className={`flex-1 flex items-center justify-center h-7 rounded border ${
+                      isActive
+                        ? "border-accent text-accent dark:border-accentDark dark:text-accentDark"
+                        : "border-line dark:border-lineDark text-graphite dark:text-graphiteDark hover:bg-accentSoft dark:hover:bg-accentSoftDark"
+                    }`}
+                  >
+                    <Icon size={13} />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {showTableTextColor && single?.type === "table" && (
+        <div className="space-y-1.5">
+          <p className="text-xs text-graphite dark:text-graphiteDark">Text color</p>
+          <div className="flex flex-wrap gap-1.5 items-center">
+            {STROKE_SWATCHES.filter((c) => c !== "transparent").map((c) => (
+              <Swatch key={c} color={c} active={single.textColor === c} onClick={() => onElementChange({ textColor: c } as Partial<CanvasElement>)} />
+            ))}
+            <button
+              onClick={() => setTableTextColorPickerOpen(true)}
+              title="Custom color"
+              className="h-6 w-6 rounded-full border border-dashed border-graphite dark:border-graphiteDark flex items-center justify-center text-[10px] text-graphite dark:text-graphiteDark"
+            >
+              +
+            </button>
           </div>
+          <ColorPicker
+            open={tableTextColorPickerOpen}
+            onClose={() => setTableTextColorPickerOpen(false)}
+            currentColor={single.textColor}
+            onSelect={(hex) => onElementChange({ textColor: hex } as Partial<CanvasElement>)}
+            onClear={() => onElementChange({ textColor: STROKE_SWATCHES[0] } as Partial<CanvasElement>)}
+          />
         </div>
       )}
 

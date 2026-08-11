@@ -2,14 +2,14 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { CanvasElement, CanvasToolId, Point, TableElement, FileLinkElement, ImageElement } from "@/lib/canvas/types";
-import { isPathElement, isTextEditable, isDrawingElement } from "@/lib/canvas/types";
+import { isPathElement, isTextEditable } from "@/lib/canvas/types";
 import {
   applyResize,
   elementInPolygon,
+  eraserHitsElement,
   getCombinedBounds,
   getResizeHandles,
   hitTestElement,
-  pathNearPoint,
   screenToCanvas,
   simplifyPoints,
   type Bounds,
@@ -25,12 +25,18 @@ const HANDLE_HIT_RADIUS = 8;
 const ERASER_RADIUS = 12;
 // Below this many screen pixels of movement, a pointerdown→pointerup on an
 // element counts as a "click" rather than a drag — used to distinguish
-// "open this File Link" from "I was just repositioning it".
+// "open this File Link" / "edit this table cell" from "I was just
+// repositioning it".
 const CLICK_DISTANCE_THRESHOLD = 4;
+// Tools whose stroke stays active after finishing a stroke, regardless of
+// the "Change to Move after using tools" setting — repeated strokes are
+// the whole point of drawing/highlighting, unlike a one-off shape or line.
+const STAYS_ACTIVE_TOOLS: CanvasToolId[] = ["freehand", "highlighter"];
 
 interface CanvasSurfaceProps {
   state: CanvasEditorState;
   settings: CanvasSettings;
+  readOnly: boolean;
   onContextMenu: (screenPoint: Point) => void;
   onOpenFileLink: (element: FileLinkElement) => void;
   onViewImageFullscreen: (element: ImageElement) => void;
@@ -46,9 +52,12 @@ interface DragState {
   handle: HandleId | null;
   originalBounds: Bounds | null;
   originalPositions: Map<string, { x: number; y: number; width: number; height: number; points?: Point[] }>;
+  /** Whether the hit element was already selected at pointerdown — used to
+   *  tell "first click selects" apart from "click again to edit". */
+  wasSelectedOnDown?: boolean;
 }
 
-export function CanvasSurface({ state, settings, onContextMenu, onOpenFileLink, onViewImageFullscreen }: CanvasSurfaceProps) {
+export function CanvasSurface({ state, settings, readOnly, onContextMenu, onOpenFileLink, onViewImageFullscreen }: CanvasSurfaceProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [lassoPoints, setLassoPoints] = useState<Point[] | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -157,8 +166,14 @@ export function CanvasSurface({ state, settings, onContextMenu, onOpenFileLink, 
     return { row, col };
   }
 
+  function openCellEditAt(tableEl: TableElement, canvasPoint: Point) {
+    const { row, col } = tableCellAt(tableEl, canvasPoint);
+    setEditingCell({ elementId: tableEl.id, row, col });
+    setCellEditValue(tableEl.cells[row]?.[col] ?? "");
+  }
+
   function eraseNear(canvasPoint: Point) {
-    const hits = elements.filter((el) => isDrawingElement(el) && pathNearPoint(el.points, canvasPoint, ERASER_RADIUS / camera.zoom));
+    const hits = elements.filter((el) => eraserHitsElement(el, canvasPoint, ERASER_RADIUS / camera.zoom));
     if (hits.length === 0) return;
     hits.forEach((el) => erasedThisGesture.current.add(el.id));
     removeElementsLive(new Set(hits.map((el) => el.id)));
@@ -173,7 +188,8 @@ export function CanvasSurface({ state, settings, onContextMenu, onOpenFileLink, 
       const canvasPoint = screenToCanvas(camera, screen.x, screen.y);
 
       // Middle-click on an image opens the fullscreen viewer instead of
-      // panning; middle-click anywhere else still pans as before.
+      // panning; middle-click anywhere else still pans as before. This
+      // works even in read-only mode — viewing an image isn't "editing".
       if (e.button === 1) {
         const hit = topmostHitAt(canvasPoint);
         if (hit && hit.type === "image") {
@@ -185,6 +201,15 @@ export function CanvasSurface({ state, settings, onContextMenu, onOpenFileLink, 
       // Middle-click, space-held, or the dedicated pan tool always pans.
       if (e.button === 1 || spaceHeld.current || tool === "pan") {
         drag.current = { ...drag.current, mode: "pan", startScreen: screen, startCanvas: canvasPoint, elementId: null, handle: null, originalBounds: null, originalPositions: new Map() };
+        return;
+      }
+
+      // View mode: only panning (handled above) and opening a File Link
+      // (handled on pointerup, once we know it was a click and not a
+      // drag) are available — no drawing, selecting, moving, or editing.
+      if (readOnly) {
+        const hit = topmostHitAt(canvasPoint);
+        drag.current = { mode: "pan", startScreen: screen, startCanvas: canvasPoint, elementId: hit ? hit.id : null, handle: null, originalBounds: null, originalPositions: new Map() };
         return;
       }
 
@@ -226,13 +251,14 @@ export function CanvasSurface({ state, settings, onContextMenu, onOpenFileLink, 
 
         const hit = topmostHitAt(canvasPoint);
         if (hit) {
+          const wasSelectedOnDown = selectedIds.has(hit.id);
           if (e.shiftKey) {
             toggleSelection(hit.id);
-          } else if (!selectedIds.has(hit.id)) {
+          } else if (!wasSelectedOnDown) {
             selectOnly(hit.id);
           }
           beginInteraction();
-          const idsToMove = e.shiftKey || selectedIds.has(hit.id) ? new Set([...selectedIds, hit.id]) : new Set([hit.id]);
+          const idsToMove = e.shiftKey || wasSelectedOnDown ? new Set([...selectedIds, hit.id]) : new Set([hit.id]);
           drag.current = {
             mode: "move",
             startScreen: screen,
@@ -240,6 +266,7 @@ export function CanvasSurface({ state, settings, onContextMenu, onOpenFileLink, 
             elementId: hit.id,
             handle: null,
             originalBounds: null,
+            wasSelectedOnDown,
             originalPositions: new Map(
               elements
                 .filter((el) => idsToMove.has(el.id))
@@ -273,22 +300,24 @@ export function CanvasSurface({ state, settings, onContextMenu, onOpenFileLink, 
       if (tool === "rectangle" || tool === "ellipse" || tool === "diamond" || tool === "table") {
         const el = createBoxElement(tool, canvasPoint, style);
         if (!el) return;
+        clearSelection(); // don't let a stale prior selection box linger while drawing
         beginInteraction();
-        addElement(el);
+        addElement(el, { select: false });
         drag.current = { mode: "draw-box", startScreen: screen, startCanvas: canvasPoint, elementId: el.id, handle: "se", originalBounds: { x: canvasPoint.x, y: canvasPoint.y, width: 0, height: 0 }, originalPositions: new Map() };
         return;
       }
 
       if (tool === "line" || tool === "arrow" || tool === "freehand" || tool === "highlighter") {
         const el = createPathElement(tool, canvasPoint, style);
+        clearSelection(); // don't let a stale prior selection box linger while drawing
         beginInteraction();
-        addElement(el);
+        addElement(el, { select: false });
         drag.current = { mode: "draw-path", startScreen: screen, startCanvas: canvasPoint, elementId: el.id, handle: null, originalBounds: null, originalPositions: new Map() };
         return;
       }
     },
     [
-      camera, tool, spaceHeld, selectedElements, selectedIds, elements, style, editingTextId, editingCell,
+      camera, tool, spaceHeld, selectedElements, selectedIds, elements, style, editingTextId, editingCell, readOnly,
       settings.switchToMoveAfterTool, getScreenPoint, handleHitAt, topmostHitAt, beginInteraction, commitInteraction,
       addElement, toggleSelection, selectOnly, clearSelection, setTool, onViewImageFullscreen,
     ]
@@ -401,13 +430,24 @@ export function CanvasSurface({ state, settings, onContextMenu, onOpenFileLink, 
       } else if (d.mode === "draw-path" && d.elementId) {
         commitInteraction();
         clearSelection();
-        if (settings.switchToMoveAfterTool) setTool("move");
+        const el = elements.find((e2) => e2.id === d.elementId);
+        const staysActive = el && STAYS_ACTIVE_TOOLS.includes(el.type as CanvasToolId);
+        if (!staysActive && settings.switchToMoveAfterTool) setTool("move");
       } else if (d.mode === "move") {
         if (d.elementId && moveDistance < CLICK_DISTANCE_THRESHOLD) {
           const el = elements.find((e2) => e2.id === d.elementId);
           if (el && el.type === "file-link") {
             commitInteraction();
             onOpenFileLink(el as FileLinkElement);
+            drag.current = { mode: "none", startScreen: { x: 0, y: 0 }, startCanvas: { x: 0, y: 0 }, elementId: null, handle: null, originalBounds: null, originalPositions: new Map() };
+            return;
+          }
+          // Clicking an already-selected table cell again opens it for
+          // editing directly — no need for a separately-timed double-click.
+          if (el && el.type === "table" && d.wasSelectedOnDown) {
+            commitInteraction();
+            const canvasPoint = screenToCanvas(camera, screen.x, screen.y);
+            openCellEditAt(el, canvasPoint);
             drag.current = { mode: "none", startScreen: { x: 0, y: 0 }, startCanvas: { x: 0, y: 0 }, elementId: null, handle: null, originalBounds: null, originalPositions: new Map() };
             return;
           }
@@ -425,23 +465,27 @@ export function CanvasSurface({ state, settings, onContextMenu, onOpenFileLink, 
           else selectMany(hits);
         }
         setLassoPoints(null);
+      } else if (d.mode === "pan" && readOnly && d.elementId && moveDistance < CLICK_DISTANCE_THRESHOLD) {
+        // View mode: a genuine click (not a pan drag) on a File Link still
+        // opens it — reading a linked file isn't "editing" the canvas.
+        const el = elements.find((e2) => e2.id === d.elementId);
+        if (el && el.type === "file-link") onOpenFileLink(el as FileLinkElement);
       }
       drag.current = { mode: "none", startScreen: { x: 0, y: 0 }, startCanvas: { x: 0, y: 0 }, elementId: null, handle: null, originalBounds: null, originalPositions: new Map() };
     },
-    [elements, commitInteraction, setTool, clearSelection, updateElement, settings.switchToMoveAfterTool, getScreenPoint, lassoPoints, selectMany, selectedIds, onOpenFileLink]
+    [elements, commitInteraction, setTool, clearSelection, updateElement, settings.switchToMoveAfterTool, getScreenPoint, lassoPoints, selectMany, selectedIds, onOpenFileLink, readOnly, camera]
   );
 
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
+      if (readOnly) return;
       const screen = getScreenPoint(e);
       const canvasPoint = screenToCanvas(camera, screen.x, screen.y);
       const hit = topmostHitAt(canvasPoint);
       if (!hit) return;
       if (hit.type === "table") {
         selectOnly(hit.id);
-        const { row, col } = tableCellAt(hit, canvasPoint);
-        setEditingCell({ elementId: hit.id, row, col });
-        setCellEditValue(hit.cells[row]?.[col] ?? "");
+        openCellEditAt(hit, canvasPoint);
         return;
       }
       if (isTextEditable(hit)) {
@@ -449,7 +493,7 @@ export function CanvasSurface({ state, settings, onContextMenu, onOpenFileLink, 
         startTextEdit(hit);
       }
     },
-    [camera, getScreenPoint, topmostHitAt, selectOnly]
+    [camera, getScreenPoint, topmostHitAt, selectOnly, readOnly]
   );
 
   const handleWheel = useCallback(
@@ -457,8 +501,13 @@ export function CanvasSurface({ state, settings, onContextMenu, onOpenFileLink, 
       e.preventDefault();
       const screen = getScreenPoint(e);
       // Wheel always zooms now — panning is done by dragging empty space
-      // (Move tool) or the arrow keys, not the scroll wheel.
-      const factor = Math.exp(-e.deltaY * 0.01);
+      // (Move tool) or the arrow keys, not the scroll wheel. deltaY can
+      // arrive as huge single-event bursts (fast mouse flicks, some
+      // trackpad drivers), so it's clamped before converting to a zoom
+      // factor — otherwise one wheel "click" could jump several zoom
+      // levels instead of a smooth, gradual change.
+      const clampedDelta = Math.max(-100, Math.min(100, e.deltaY));
+      const factor = Math.exp(-clampedDelta * 0.0018);
       zoomAt(screen, factor);
     },
     [getScreenPoint, zoomAt]
@@ -467,13 +516,14 @@ export function CanvasSurface({ state, settings, onContextMenu, onOpenFileLink, 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
       e.preventDefault();
+      if (readOnly) return;
       const screen = getScreenPoint(e);
       const canvasPoint = screenToCanvas(camera, screen.x, screen.y);
       const hit = topmostHitAt(canvasPoint);
       if (hit && !selectedIds.has(hit.id)) selectOnly(hit.id);
       onContextMenu({ x: e.clientX, y: e.clientY });
     },
-    [camera, getScreenPoint, topmostHitAt, selectedIds, selectOnly, onContextMenu]
+    [camera, getScreenPoint, topmostHitAt, selectedIds, selectOnly, onContextMenu, readOnly]
   );
 
   // Space bar = temporary pan mode, without changing the active tool.
@@ -491,13 +541,14 @@ export function CanvasSurface({ state, settings, onContextMenu, onOpenFileLink, 
   }, []);
 
   const selectionBox = getCombinedBounds(selectedElements);
-  const handles = selectionBox && tool === "move" ? getResizeHandles(selectionBox) : null;
+  const handles = selectionBox && tool === "move" && !readOnly ? getResizeHandles(selectionBox) : null;
 
   const gridOffsetX = ((-camera.x * camera.zoom) % (GRID_SIZE * camera.zoom) + GRID_SIZE * camera.zoom) % (GRID_SIZE * camera.zoom);
   const gridOffsetY = ((-camera.y * camera.zoom) % (GRID_SIZE * camera.zoom) + GRID_SIZE * camera.zoom) % (GRID_SIZE * camera.zoom);
 
-  const cursor =
-    isSpacePanning || tool === "pan" || drag.current.mode === "pan"
+  const cursor = readOnly
+    ? "default"
+    : isSpacePanning || tool === "pan" || drag.current.mode === "pan"
       ? "grab"
       : tool === "move"
         ? "default"
@@ -567,7 +618,6 @@ export function CanvasSurface({ state, settings, onContextMenu, onOpenFileLink, 
             cellEditValue={cellEditValue}
             onCellEditChange={setCellEditValue}
             onCommitCellEdit={commitCellEdit}
-            onOpenFileLink={(target) => onOpenFileLink(target as FileLinkElement)}
           />
         ))}
 

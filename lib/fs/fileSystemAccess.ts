@@ -235,6 +235,26 @@ export async function createFile(
   return dirHandle.getFileHandle(fileName, { create: true });
 }
 
+/**
+ * Opens the native "Save As" dialog so the user picks where a file goes,
+ * rather than writing into an already-open workspace folder. Used by the
+ * Scratch Pad, which otherwise has no folder/path of its own. Returns the
+ * chosen handle (not yet written to — pair with writeFile), or null if the
+ * picker isn't supported or the user cancelled.
+ */
+export async function pickSaveLocation(suggestedName: string): Promise<FileSystemFileHandle | null> {
+  if (typeof window === "undefined" || !("showSaveFilePicker" in window)) return null;
+  try {
+    // @ts-expect-error showSaveFilePicker isn't in stable lib.dom types yet
+    return await window.showSaveFilePicker({
+      suggestedName,
+      types: [{ description: "Markdown", accept: { "text/markdown": [".md"] } }],
+    });
+  } catch {
+    return null; // user cancelled
+  }
+}
+
 export async function getOrCreateSubdirectory(
   dirHandle: FileSystemDirectoryHandle,
   name: string

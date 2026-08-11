@@ -56,6 +56,7 @@ export function CanvasEditor({ note, handle, initialContent }: CanvasEditorProps
   const [loadedContent, setLoadedContent] = useState<string | undefined>(initialContent);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [fullscreenImage, setFullscreenImage] = useState<ImageElement | null>(null);
+  const [mode, setMode] = useState<"edit" | "view">("edit");
 
   const initialDocument = useRef(parseCanvasDocument(loadedContent ?? "")).current;
   const state = useCanvasEditorState(initialDocument);
@@ -98,6 +99,13 @@ export function CanvasEditor({ note, handle, initialContent }: CanvasEditorProps
     return () => registerSave(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handle, note.id, toDocument, registerSave, setNoteContent, markSaved]);
+
+  // Matches RichNoteEditor's view-mode behavior: no stray selection UI
+  // (outline/handles) should persist once editing is disabled.
+  useEffect(() => {
+    if (mode === "view") clearSelection();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
 
   const viewportCenterCanvasPoint = useCallback(() => {
     const w = containerRef.current?.clientWidth ?? 0;
@@ -203,6 +211,32 @@ export function CanvasEditor({ note, handle, initialContent }: CanvasEditorProps
       const keyString = eventToKeyString(e);
       const action = canvasShortcuts.find((s) => s.keys === keyString)?.id;
 
+      // View mode is read-only: only navigation (zoom, arrow-key pan,
+      // Escape) is available — no tool switches or mutations.
+      if (mode === "view") {
+        if (action === "canvas-zoom-in") {
+          e.preventDefault();
+          zoomAt({ x: (containerRef.current?.clientWidth ?? 0) / 2, y: (containerRef.current?.clientHeight ?? 0) / 2 }, 1.2);
+        } else if (action === "canvas-zoom-out") {
+          e.preventDefault();
+          zoomAt({ x: (containerRef.current?.clientWidth ?? 0) / 2, y: (containerRef.current?.clientHeight ?? 0) / 2 }, 1 / 1.2);
+        } else if (action === "canvas-reset-zoom") {
+          e.preventDefault();
+          resetZoom();
+        } else if (!mod && canvasSettings.arrowKeyPanEnabled && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+          e.preventDefault();
+          const step = (e.shiftKey ? 3 : 1) * canvasSettings.panAmount;
+          // Arrow-key pan moves the camera in the pressed direction (like a
+          // scrollbar): Right reveals content further right, so the content
+          // itself shifts left on screen — the opposite of the drag-to-pan
+          // convention, where content follows the pointer directly.
+          const dx = e.key === "ArrowLeft" ? step : e.key === "ArrowRight" ? -step : 0;
+          const dy = e.key === "ArrowUp" ? step : e.key === "ArrowDown" ? -step : 0;
+          pan(dx, dy);
+        }
+        return;
+      }
+
       if (action) {
         switch (action) {
           case "canvas-undo":
@@ -289,8 +323,10 @@ export function CanvasEditor({ note, handle, initialContent }: CanvasEditorProps
         } else if (canvasSettings.arrowKeyPanEnabled) {
           e.preventDefault();
           const step = (e.shiftKey ? 3 : 1) * canvasSettings.panAmount;
-          const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
-          const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+          // See the view-mode branch above for why these signs are flipped
+          // relative to a plain drag-to-pan.
+          const dx = e.key === "ArrowLeft" ? step : e.key === "ArrowRight" ? -step : 0;
+          const dy = e.key === "ArrowUp" ? step : e.key === "ArrowDown" ? -step : 0;
           pan(dx, dy);
         }
         return;
@@ -303,10 +339,11 @@ export function CanvasEditor({ note, handle, initialContent }: CanvasEditorProps
     undo, redo, selectAll, duplicateElements, selectedIds, selectedElements, deleteElements,
     clearSelection, setTool, updateElement, zoomAt, resetZoom, state.editingTextId,
     canvasShortcuts, canvasSettings, copySelection, pasteAtPoint, viewportCenterCanvasPoint,
-    pan, handleInsertImage, handleInsertFileLink,
+    pan, handleInsertImage, handleInsertFileLink, mode,
   ]);
 
   function handleContextMenu(point: { x: number; y: number }) {
+    if (mode === "view") return;
     setContextMenu(point);
   }
 
@@ -323,50 +360,57 @@ export function CanvasEditor({ note, handle, initialContent }: CanvasEditorProps
       <CanvasTopBar
         note={note}
         onRename={(updates) => renameNote(note.id, updates)}
+        mode={mode}
+        onModeChange={setMode}
         zoom={camera.zoom}
         onZoomIn={() => zoomAt({ x: (containerRef.current?.clientWidth ?? 0) / 2, y: (containerRef.current?.clientHeight ?? 0) / 2 }, 1.2)}
         onZoomOut={() => zoomAt({ x: (containerRef.current?.clientWidth ?? 0) / 2, y: (containerRef.current?.clientHeight ?? 0) / 2 }, 1 / 1.2)}
         onResetZoom={resetZoom}
         gridEnabled={gridEnabled}
         onToggleGrid={() => setGridEnabled(!gridEnabled)}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        onUndo={undo}
-        onRedo={redo}
+        canUndo={mode === "edit" && canUndo}
+        canRedo={mode === "edit" && canRedo}
+        onUndo={mode === "edit" ? undo : () => {}}
+        onRedo={mode === "edit" ? redo : () => {}}
         isDirty={isDirty}
       />
 
       <div className="relative flex-1 min-h-0 flex">
         <div className="relative flex-1 min-h-0 min-w-0 bg-paper dark:bg-paperDark">
-          <CanvasToolPalette
-            tool={tool}
-            onSelectTool={setTool}
-            onInsertImage={handleInsertImage}
-            onInsertFileLink={handleInsertFileLink}
-            shortcuts={canvasShortcuts}
-          />
+          {mode === "edit" && (
+            <CanvasToolPalette
+              tool={tool}
+              onSelectTool={setTool}
+              onInsertImage={handleInsertImage}
+              onInsertFileLink={handleInsertFileLink}
+              shortcuts={canvasShortcuts}
+            />
+          )}
           <CanvasSurface
             state={state}
             settings={canvasSettings}
+            readOnly={mode === "view"}
             onContextMenu={handleContextMenu}
             onOpenFileLink={handleOpenFileLink}
             onViewImageFullscreen={setFullscreenImage}
           />
         </div>
 
-        <CanvasPropertiesPanel
-          selectedElements={selectedElements}
-          style={style}
-          onStyleChange={handleStyleChange}
-          onElementChange={handleElementChange}
-          onReorder={(direction) => reorder(selectedIds, direction)}
-          onDelete={() => deleteElements(selectedIds)}
-          onViewImageFullscreen={setFullscreenImage}
-          onRelocateFileLink={handleRelocateFileLink}
-        />
+        {mode === "edit" && (
+          <CanvasPropertiesPanel
+            selectedElements={selectedElements}
+            style={style}
+            onStyleChange={handleStyleChange}
+            onElementChange={handleElementChange}
+            onReorder={(direction) => reorder(selectedIds, direction)}
+            onDelete={() => deleteElements(selectedIds)}
+            onViewImageFullscreen={setFullscreenImage}
+            onRelocateFileLink={handleRelocateFileLink}
+          />
+        )}
       </div>
 
-      {contextMenu && (
+      {contextMenu && mode === "edit" && (
         <CanvasContextMenu
           position={contextMenu}
           hasSelection={selectedIds.size > 0}
