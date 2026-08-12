@@ -32,6 +32,12 @@ const CLICK_DISTANCE_THRESHOLD = 4;
 // the "Change to Move after using tools" setting — repeated strokes are
 // the whole point of drawing/highlighting, unlike a one-off shape or line.
 const STAYS_ACTIVE_TOOLS: CanvasToolId[] = ["freehand", "highlighter"];
+// Element types the Eraser tool is allowed to remove — freehand drawings,
+// shapes, lines/arrows, and the highlighter. Text, sticky notes, images,
+// file links, and tables are never erased this way (only deleted
+// explicitly), since erasing them via a stray brush pass would be far too
+// easy to trigger by accident.
+const ERASABLE_TYPES: CanvasToolId[] = ["freehand", "rectangle", "ellipse", "diamond", "line", "arrow", "highlighter"];
 
 interface CanvasSurfaceProps {
   state: CanvasEditorState;
@@ -55,6 +61,12 @@ interface DragState {
   /** Whether the hit element was already selected at pointerdown — used to
    *  tell "first click selects" apart from "click again to edit". */
   wasSelectedOnDown?: boolean;
+  /** True only for a plain, unmodified click that targets exactly one
+   *  element (no shift-multi-select, not part of a larger group move) —
+   *  the sole condition under which a File Link is allowed to open on
+   *  release. Selecting-as-part-of-a-group, dragging, and resizing all
+   *  leave this false or never reach the open check at all. */
+  canOpenFileLink?: boolean;
 }
 
 export function CanvasSurface({ state, settings, readOnly, onContextMenu, onOpenFileLink, onViewImageFullscreen }: CanvasSurfaceProps) {
@@ -173,7 +185,9 @@ export function CanvasSurface({ state, settings, readOnly, onContextMenu, onOpen
   }
 
   function eraseNear(canvasPoint: Point) {
-    const hits = elements.filter((el) => eraserHitsElement(el, canvasPoint, ERASER_RADIUS / camera.zoom));
+    const hits = elements.filter(
+      (el) => ERASABLE_TYPES.includes(el.type as CanvasToolId) && eraserHitsElement(el, canvasPoint, ERASER_RADIUS / camera.zoom)
+    );
     if (hits.length === 0) return;
     hits.forEach((el) => erasedThisGesture.current.add(el.id));
     removeElementsLive(new Set(hits.map((el) => el.id)));
@@ -183,6 +197,14 @@ export function CanvasSurface({ state, settings, readOnly, onContextMenu, onOpen
     (e: React.PointerEvent<SVGSVGElement>) => {
       if (editingTextId) commitTextEdit();
       if (editingCell) commitCellEdit();
+
+      // Right-click never starts a drag/selection/open interaction here —
+      // it's handled entirely by the separate onContextMenu handler. Without
+      // this, a right-click on a File Link fell through to the "move" tool
+      // logic below and (with near-zero pointer movement between down/up)
+      // was indistinguishable from a normal open-click.
+      if (e.button === 2) return;
+
       (e.target as Element).setPointerCapture?.(e.pointerId);
       const screen = getScreenPoint(e);
       const canvasPoint = screenToCanvas(camera, screen.x, screen.y);
@@ -267,6 +289,9 @@ export function CanvasSurface({ state, settings, readOnly, onContextMenu, onOpen
             handle: null,
             originalBounds: null,
             wasSelectedOnDown,
+            // Only a plain click (no shift) that ends up moving exactly one
+            // element — this file link and nothing else — can open it.
+            canOpenFileLink: !e.shiftKey && idsToMove.size === 1,
             originalPositions: new Map(
               elements
                 .filter((el) => idsToMove.has(el.id))
@@ -318,8 +343,9 @@ export function CanvasSurface({ state, settings, readOnly, onContextMenu, onOpen
     },
     [
       camera, tool, spaceHeld, selectedElements, selectedIds, elements, style, editingTextId, editingCell, readOnly,
-      settings.switchToMoveAfterTool, getScreenPoint, handleHitAt, topmostHitAt, beginInteraction, commitInteraction,
-      addElement, toggleSelection, selectOnly, clearSelection, setTool, onViewImageFullscreen,
+      editValue, cellEditValue, settings.switchToMoveAfterTool, getScreenPoint, handleHitAt, topmostHitAt,
+      beginInteraction, commitInteraction, addElement, toggleSelection, selectOnly, clearSelection, setTool,
+      onViewImageFullscreen,
     ]
   );
 
@@ -436,7 +462,7 @@ export function CanvasSurface({ state, settings, readOnly, onContextMenu, onOpen
       } else if (d.mode === "move") {
         if (d.elementId && moveDistance < CLICK_DISTANCE_THRESHOLD) {
           const el = elements.find((e2) => e2.id === d.elementId);
-          if (el && el.type === "file-link") {
+          if (el && el.type === "file-link" && d.canOpenFileLink) {
             commitInteraction();
             onOpenFileLink(el as FileLinkElement);
             drag.current = { mode: "none", startScreen: { x: 0, y: 0 }, startCanvas: { x: 0, y: 0 }, elementId: null, handle: null, originalBounds: null, originalPositions: new Map() };

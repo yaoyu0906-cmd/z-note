@@ -198,12 +198,14 @@ export function pathNearPoint(points: Point[], point: Point, radius: number): bo
 }
 
 /** Whether the Eraser tool's brush (a circle of `radius`) touches an
- *  element. Point-path elements (line/arrow/freehand/highlighter) use a
- *  distance-to-segment test against `radius`, since a raw hit test would
- *  require landing exactly on the stroke; box-shaped elements (shapes,
- *  text, sticky, table, image, file-link) reuse the normal shape-aware
- *  hit test, so erasing a rectangle/ellipse/diamond respects its actual
- *  outline rather than its full bounding box. */
+ *  element's geometry. Point-path elements (line/arrow/freehand/
+ *  highlighter) use a distance-to-segment test against `radius`, since a
+ *  raw hit test would require landing exactly on the stroke; box-shaped
+ *  elements (rectangle/ellipse/diamond) reuse the normal shape-aware hit
+ *  test, so erasing one respects its actual outline rather than its full
+ *  bounding box. This only tests geometry — which element *types* the
+ *  Eraser is allowed to touch at all (text/sticky/table/image/file-link
+ *  are excluded) is decided by the caller, not here. */
 export function eraserHitsElement(el: CanvasElement, point: Point, radius: number): boolean {
   if (el.type === "arrow" || el.type === "line" || el.type === "freehand" || el.type === "highlighter") {
     return pathNearPoint(el.points, point, radius);

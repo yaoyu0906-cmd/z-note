@@ -54,4 +54,17 @@ test.describe("Canvas tool palette", () => {
     await dragOnCanvas(page, { x: 20, y: 20 }, { x: 120, y: 120 });
     await expect(page.getByText("Select an element to see its properties")).toBeVisible();
   });
+
+  test("clicking blank space after typing text keeps the text and only deselects it", async ({ page }) => {
+    await createCanvasNote(page);
+    await page.getByRole("button", { name: /^Text \(/ }).click();
+    await dragOnCanvas(page, { x: 150, y: 150 }, { x: 150, y: 150 });
+    await page.keyboard.type("Hello world");
+
+    // Click far-away blank space — should commit + deselect, not delete.
+    await page.mouse.click(600, 500);
+
+    await expect(canvasSurface(page).getByText("Hello world")).toBeVisible();
+    await expect(page.getByText("Select an element to see its properties")).toBeVisible();
+  });
 });

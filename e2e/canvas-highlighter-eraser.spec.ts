@@ -51,3 +51,31 @@ test.describe("Canvas highlighter and eraser", () => {
     await expect(canvasSurface(page).locator("path")).toHaveCount(1);
   });
 });
+
+test.describe("Canvas eraser scope", () => {
+  test("eraser ignores text but still removes shapes", async ({ page }) => {
+    await createCanvasNote(page);
+
+    // A rectangle should still be erasable (in-scope).
+    await page.getByRole("button", { name: /^Rectangle \(/ }).click();
+    await dragOnCanvas(page, { x: 400, y: 400 }, { x: 500, y: 460 });
+
+    // Text should NOT be erasable.
+    await page.getByRole("button", { name: /^Text \(/ }).click();
+    await dragOnCanvas(page, { x: 100, y: 100 }, { x: 100, y: 100 });
+    await page.keyboard.type("Hello");
+    await page.mouse.click(700, 500); // click blank space to commit + deselect
+
+    await expect(canvasSurface(page).getByText("Hello")).toBeVisible();
+    await expect(canvasSurface(page).locator("rect")).toHaveCount(1);
+
+    // Erase over the text — it must survive.
+    await page.getByRole("button", { name: /^Eraser \(/ }).click();
+    await dragOnCanvas(page, { x: 90, y: 95 }, { x: 150, y: 105 });
+    await expect(canvasSurface(page).getByText("Hello")).toBeVisible();
+
+    // Erase over the rectangle — it must be removed (still in-scope).
+    await dragOnCanvas(page, { x: 420, y: 420 }, { x: 480, y: 440 });
+    await expect(canvasSurface(page).locator("rect")).toHaveCount(0);
+  });
+});
