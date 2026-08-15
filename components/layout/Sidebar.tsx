@@ -10,6 +10,7 @@ import { useTabsStore } from "@/lib/store/useTabsStore";
 import { IconButton } from "@/components/ui";
 import { FileContextMenu } from "@/components/workspace/FileContextMenu";
 import { FileTree } from "@/components/workspace/FileTree";
+import { CloudSection } from "@/components/workspace/CloudSection";
 import { pathDirname } from "@/lib/fs/fileSystemAccess";
 import type { Note } from "@/lib/types/note";
 
@@ -124,6 +125,8 @@ export function Sidebar() {
           <FileTree key={ws.id} workspaceId={ws.id} />
         ))}
       </div>
+
+      <CloudSection />
 
       {activeTagFilter && (
         <SidebarSection title={`Tagged: ${tags.find((t) => t.id === activeTagFilter)?.label ?? ""}`}>

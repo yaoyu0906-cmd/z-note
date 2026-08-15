@@ -2,11 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Check, Plus, Pencil, FolderInput, Trash2, Star } from "lucide-react";
+import { Check, Plus, Pencil, FolderInput, Trash2, Star, Cloud, CloudOff } from "lucide-react";
 import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 import { useTabsStore } from "@/lib/store/useTabsStore";
+import { useAuthStore } from "@/lib/store/useAuthStore";
+import { useSyncStore, resyncAfterMove } from "@/lib/store/useSyncStore";
 import { ColorPicker } from "@/components/editor/ColorPicker";
 import { MoveDestinationList } from "@/components/workspace/MoveDestinationList";
+import { SyncDeleteDialog } from "@/components/workspace/SyncDeleteDialog";
 import { CATPPUCCIN_MOCHA_COLORS } from "@/lib/editor/catppuccinMocha";
 import type { Note } from "@/lib/types/note";
 
@@ -29,6 +32,10 @@ export function FileContextMenu({ note, position, onClose }: FileContextMenuProp
   const moveNote = useWorkspaceStore((s) => s.moveNote);
   const deleteNote = useWorkspaceStore((s) => s.deleteNote);
   const toggleFavorite = useWorkspaceStore((s) => s.toggleFavorite);
+  const isLoggedIn = useAuthStore((s) => s.status === "signed-in");
+  const synced = useSyncStore((s) => (note.workspaceId ? s.isSynced(note.workspaceId, note.path) : false));
+  const syncStatus = useSyncStore((s) => (note.workspaceId ? s.statusFor(note.workspaceId, note.path) : "idle"));
+  const quotaMessage = useSyncStore((s) => s.quotaMessage);
 
   const [newTagLabel, setNewTagLabel] = useState("");
   const [renamingTagId, setRenamingTagId] = useState<string | null>(null);
@@ -36,6 +43,7 @@ export function FileContextMenu({ note, position, onClose }: FileContextMenuProp
   const [colorPickerTagId, setColorPickerTagId] = useState<string | null>(null);
   const [showMoveList, setShowMoveList] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [syncDeleteOpen, setSyncDeleteOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -73,7 +81,14 @@ export function FileContextMenu({ note, position, onClose }: FileContextMenuProp
 
   async function handleMove(workspaceId: string, folderPath: string) {
     const wasActiveRoute = pathname === `/note/${encodeURIComponent(note.id)}`;
+    const wasSynced = note.workspaceId ? synced : false;
+    const oldWorkspaceId = note.workspaceId;
+    const oldPath = note.path;
     await moveNote(note.id, workspaceId, folderPath);
+    if (wasSynced && oldWorkspaceId) {
+      const newPath = folderPath ? `${folderPath}/${note.path.split("/").pop()}` : note.path.split("/").pop()!;
+      resyncAfterMove(oldWorkspaceId, oldPath, workspaceId, newPath, false);
+    }
     if (wasActiveRoute) {
       const activeId = useTabsStore.getState().activeTabByPane.primary;
       if (activeId && activeId !== note.id) router.replace(`/note/${encodeURIComponent(activeId)}`);
@@ -81,7 +96,17 @@ export function FileContextMenu({ note, position, onClose }: FileContextMenuProp
     onClose();
   }
 
+  function handleToggleSync() {
+    if (!note.workspaceId || !isLoggedIn) return;
+    if (synced) useSyncStore.getState().unsync(note.workspaceId, note.path, false, { deleteCloud: true });
+    else useSyncStore.getState().syncFile(note.workspaceId, note);
+  }
+
   async function handleDelete() {
+    if (synced) {
+      setSyncDeleteOpen(true);
+      return;
+    }
     if (!confirmingDelete) {
       setConfirmingDelete(true);
       return;
@@ -89,6 +114,19 @@ export function FileContextMenu({ note, position, onClose }: FileContextMenuProp
     const wasActiveRoute = pathname === `/note/${encodeURIComponent(note.id)}`;
     await deleteNote(note.id);
     if (wasActiveRoute) router.push("/");
+    onClose();
+  }
+
+  async function handleSyncDelete(target: "local" | "cloud" | "both") {
+    setSyncDeleteOpen(false);
+    const wasActiveRoute = pathname === `/note/${encodeURIComponent(note.id)}`;
+    if (target === "cloud" || target === "both") {
+      if (note.workspaceId) await useSyncStore.getState().unsync(note.workspaceId, note.path, false, { deleteCloud: true });
+    }
+    if (target === "local" || target === "both") {
+      await deleteNote(note.id);
+      if (wasActiveRoute) router.push("/");
+    }
     onClose();
   }
 
@@ -201,6 +239,24 @@ export function FileContextMenu({ note, position, onClose }: FileContextMenuProp
           {showMoveList && <MoveDestinationList onSelect={handleMove} />}
 
           <button
+            onClick={handleToggleSync}
+            disabled={!isLoggedIn}
+            title={!isLoggedIn ? "Log in to sync to the cloud" : syncStatus === "quota-exceeded" ? quotaMessage ?? undefined : undefined}
+            className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left hover:bg-accentSoft dark:hover:bg-accentSoftDark disabled:opacity-40 disabled:hover:bg-transparent ${
+              syncStatus === "quota-exceeded" ? "text-red-600 dark:text-red-400" : "text-ink dark:text-inkDark"
+            }`}
+          >
+            {synced ? <Cloud size={14} className="shrink-0 text-accent dark:text-accentDark" /> : <CloudOff size={14} className="shrink-0" />}
+            {synced
+              ? syncStatus === "syncing"
+                ? "Syncing…"
+                : "Synced to Cloud"
+              : syncStatus === "quota-exceeded"
+                ? "Cloud storage full"
+                : "Sync to Cloud"}
+          </button>
+
+          <button
             onClick={handleDelete}
             onBlur={() => setConfirmingDelete(false)}
             className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left ${
@@ -224,6 +280,13 @@ export function FileContextMenu({ note, position, onClose }: FileContextMenuProp
           onClear={() => recolorTag(activeColorTag.id, "#89b4fa")}
         />
       )}
+
+      <SyncDeleteDialog
+        open={syncDeleteOpen}
+        name={note.title}
+        onClose={() => setSyncDeleteOpen(false)}
+        onDelete={handleSyncDelete}
+      />
     </div>
   );
 }

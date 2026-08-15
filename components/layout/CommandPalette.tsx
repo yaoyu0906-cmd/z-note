@@ -8,11 +8,13 @@ import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 import { useTabsStore } from "@/lib/store/useTabsStore";
 import { useSettingsStore } from "@/lib/store/useSettingsStore";
 import { useActiveEditorStore } from "@/lib/store/useActiveEditorStore";
+import { SCRATCH_PAD_NOTE_ID } from "@/lib/scratchPad";
 
 interface CommandCtx {
   router: ReturnType<typeof useRouter>;
   openQuickNote: () => void;
   openNewFile: () => void;
+  openScratchPad: () => void;
   toggleSidebar: () => void;
   toggleTheme: () => void;
   toggleSplit: () => void;
@@ -23,6 +25,7 @@ interface CommandCtx {
 const COMMANDS: { id: string; label: string; run: (ctx: CommandCtx) => void }[] = [
   { id: "cmd-new-note", label: "New Note…", run: ({ openNewFile }) => openNewFile() },
   { id: "cmd-quick-note", label: "New Quick Note", run: ({ openQuickNote }) => openQuickNote() },
+  { id: "cmd-scratch-pad", label: "Scratch Pad", run: ({ openScratchPad }) => openScratchPad() },
   { id: "cmd-save", label: "Save Note", run: ({ save }) => save() },
   { id: "cmd-open-folder", label: "Add Workspace Folder…", run: ({ addWorkspace }) => addWorkspace() },
   { id: "cmd-toggle-sidebar", label: "Toggle Sidebar", run: ({ toggleSidebar }) => toggleSidebar() },
@@ -100,6 +103,7 @@ export function CommandPalette() {
                     router,
                     openQuickNote: () => setQuickNoteOpen(true),
                     openNewFile: () => openNewFileDialog(),
+                    openScratchPad: () => router.push(`/note/${SCRATCH_PAD_NOTE_ID}`),
                     toggleSidebar,
                     toggleTheme: () => setThemeMode(themeMode === "dark" ? "light" : "dark"),
                     toggleSplit,

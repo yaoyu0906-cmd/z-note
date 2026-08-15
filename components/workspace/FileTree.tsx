@@ -13,10 +13,12 @@ import {
   LayoutGrid,
   FilePlus,
   FolderPlus,
+  Cloud,
 } from "lucide-react";
 import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 import { useTabsStore } from "@/lib/store/useTabsStore";
 import { useUIStore } from "@/lib/store/useUIStore";
+import { useSyncStore, computeIsSynced } from "@/lib/store/useSyncStore";
 import { IconButton } from "@/components/ui";
 import { FileContextMenu } from "@/components/workspace/FileContextMenu";
 import { FolderContextMenu } from "@/components/workspace/FolderContextMenu";
@@ -110,6 +112,7 @@ function Tree({
   const toggleFolder = useWorkspaceStore((s) => s.toggleFolder);
   const createFolder = useWorkspaceStore((s) => s.createFolder);
   const openNewFileDialog = useUIStore((s) => s.openNewFileDialog);
+  const syncedEntries = useSyncStore((s) => s.syncedEntries);
   const expandedFolders = workspace?.expandedFolders ?? {};
   const [dragOverPath, setDragOverPath] = useState<string | null>(null);
 
@@ -170,6 +173,9 @@ function Tree({
                     <Folder size={14} className="text-graphite dark:text-graphiteDark shrink-0" />
                   )}
                   <span className="truncate text-ink dark:text-inkDark">{node.name}</span>
+                  {computeIsSynced(syncedEntries, workspaceId, node.path) && (
+                    <Cloud size={11} className="text-accent dark:text-accentDark shrink-0" />
+                  )}
                 </button>
                 <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
                   <IconButton
@@ -249,6 +255,9 @@ function Tree({
           >
             <Icon size={14} className="text-graphite dark:text-graphiteDark shrink-0" />
             <span className="truncate text-ink dark:text-inkDark">{note.title}</span>
+            {computeIsSynced(syncedEntries, workspaceId, node.path) && (
+              <Cloud size={11} className="text-accent dark:text-accentDark shrink-0" />
+            )}
           </button>
         );
       })}

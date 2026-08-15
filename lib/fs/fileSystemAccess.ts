@@ -242,13 +242,28 @@ export async function createFile(
  * chosen handle (not yet written to — pair with writeFile), or null if the
  * picker isn't supported or the user cancelled.
  */
+const SAVE_TYPE_BY_EXTENSION: Record<string, { description: string; accept: Record<string, string[]> }> = {
+  md: { description: "Markdown", accept: { "text/markdown": [".md"] } },
+  txt: { description: "Plain Text", accept: { "text/plain": [".txt"] } },
+  note: { description: "Z-Note", accept: { "text/html": [".note"] } },
+  canvas: { description: "Z-Note Canvas", accept: { "application/json": [".canvas"] } },
+};
+
+/** Opens the native "Save As" dialog so the user picks where a file goes,
+ *  rather than writing into an already-open workspace folder. Used by the
+ *  Scratch Pad (which has no folder/path of its own) and by downloading a
+ *  cloud file to a local destination. The file-type picker defaults to
+ *  Markdown for backward compatibility with existing callers that don't
+ *  pass a suggested name with a recognized extension. */
 export async function pickSaveLocation(suggestedName: string): Promise<FileSystemFileHandle | null> {
   if (typeof window === "undefined" || !("showSaveFilePicker" in window)) return null;
+  const ext = suggestedName.split(".").pop()?.toLowerCase() ?? "";
+  const type = SAVE_TYPE_BY_EXTENSION[ext] ?? SAVE_TYPE_BY_EXTENSION.md;
   try {
     // @ts-expect-error showSaveFilePicker isn't in stable lib.dom types yet
     return await window.showSaveFilePicker({
       suggestedName,
-      types: [{ description: "Markdown", accept: { "text/markdown": [".md"] } }],
+      types: [type],
     });
   } catch {
     return null; // user cancelled

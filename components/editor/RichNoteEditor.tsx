@@ -22,6 +22,9 @@ import { ThemedCodeBlock } from "@/lib/editor/extensions/codeBlock";
 import { PageBlockNode } from "@/lib/editor/extensions/pageBlockNode";
 import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 import { useActiveEditorStore } from "@/lib/store/useActiveEditorStore";
+import { useSyncStore } from "@/lib/store/useSyncStore";
+import { isCloudNoteId, pushCloudOnlyNote } from "@/lib/cloudNote";
+import { useCloudRealtime } from "@/lib/useCloudRealtime";
 import { readFile, writeFile } from "@/lib/fs/fileSystemAccess";
 import type { Note } from "@/lib/types/note";
 
@@ -81,6 +84,7 @@ export function RichNoteEditor({ note, handle, initialContent }: RichNoteEditorP
   const [mode, setMode] = useState<Mode>("edit");
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [cloudSaveError, setCloudSaveError] = useState<string | null>(null);
   const renameNote = useWorkspaceStore((s) => s.renameNote);
   const setNoteContent = useWorkspaceStore((s) => s.setNoteContent);
   const registerSave = useActiveEditorStore((s) => s.registerSave);
@@ -119,16 +123,34 @@ export function RichNoteEditor({ note, handle, initialContent }: RichNoteEditorP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, handle]);
 
+  // Cloud-only notes (no local File System Access handle — this device
+  // can't use the API, e.g. Safari/iOS, or the file was never
+  // downloaded) pick up edits saved from another device live.
+  useCloudRealtime(
+    note.id,
+    () => editor?.getHTML() ?? "",
+    (remoteHtml) => {
+      editor?.commands.setContent(remoteHtml);
+      viewEditor?.commands.setContent(remoteHtml);
+    }
+  );
+
   // Register Ctrl+S for whichever note is currently mounted.
   useEffect(() => {
     registerSave(async () => {
       if (!editor) return;
       const html = editor.getHTML();
+      if (isCloudNoteId(note.id)) {
+        const result = await pushCloudOnlyNote(note.id, note.type, html);
+        setCloudSaveError(result.ok ? null : result.reason);
+        return;
+      }
       if (handle) await writeFile(handle, html);
       else setNoteContent(note.id, html);
+      if (note.workspaceId) useSyncStore.getState().pushIfSynced(note.workspaceId, note, html);
     });
     return () => registerSave(null);
-  }, [editor, handle, note.id, registerSave, setNoteContent]);
+  }, [editor, handle, note.id, note.workspaceId, note.path, note.type, registerSave, setNoteContent]);
 
   useEffect(() => {
     editor?.setEditable(mode !== "view");
@@ -185,12 +207,19 @@ export function RichNoteEditor({ note, handle, initialContent }: RichNoteEditorP
   return (
     <div className="flex h-full flex-col border border-line dark:border-lineDark rounded-md overflow-hidden">
       <div className="flex items-center justify-between border-b border-line dark:border-lineDark bg-white dark:bg-surfaceDark px-3 py-2">
-        <EditableFilename
-          title={note.title}
-          path={note.path}
-          type={note.type}
-          onRename={(updates) => renameNote(note.id, updates)}
-        />
+        <div className="flex items-center gap-2 min-w-0">
+          <EditableFilename
+            title={note.title}
+            path={note.path}
+            type={note.type}
+            onRename={(updates) => renameNote(note.id, updates)}
+          />
+          {cloudSaveError && (
+            <span className="text-xs text-red-600 dark:text-red-400 truncate" title={cloudSaveError}>
+              Cloud save failed: {cloudSaveError}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1">
           <IconButton label="Edit mode" active={mode === "edit"} onClick={() => setMode("edit")}>
             <Pencil size={15} />

@@ -1,5 +1,13 @@
 import { createBrowserClient } from "@supabase/ssr";
 
+/** Account/sync features are entirely optional — Z-Note must keep working
+ *  with no Supabase project configured at all (the default, out-of-the-box
+ *  local-only setup). Callers should check this before touching auth/sync
+ *  instead of letting a createClient() call fail with empty env vars. */
+export function isSupabaseConfigured(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+}
+
 export function createClient() {
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

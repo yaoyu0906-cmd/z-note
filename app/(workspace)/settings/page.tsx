@@ -6,8 +6,10 @@ import { AISettings } from "@/components/settings/AISettings";
 import { ShortcutSettings } from "@/components/settings/ShortcutSettings";
 import { CanvasSettings } from "@/components/settings/CanvasSettings";
 import { WorkspaceSettings } from "@/components/settings/WorkspaceSettings";
+import { AccountSettings } from "@/components/settings/AccountSettings";
 
 const SECTIONS = [
+  { id: "account", label: "Account" },
   { id: "appearance", label: "Appearance" },
   { id: "ai", label: "AI" },
   { id: "shortcuts", label: "Keyboard Shortcuts" },
@@ -18,7 +20,7 @@ const SECTIONS = [
 type SectionId = (typeof SECTIONS)[number]["id"];
 
 export default function SettingsPage() {
-  const [section, setSection] = useState<SectionId>("appearance");
+  const [section, setSection] = useState<SectionId>("account");
 
   return (
     <div className="flex h-full">
@@ -39,6 +41,7 @@ export default function SettingsPage() {
       </nav>
 
       <div className="flex-1 p-6 max-w-2xl">
+        {section === "account" && <AccountSettings />}
         {section === "appearance" && <AppearanceSettings />}
         {section === "ai" && <AISettings />}
         {section === "shortcuts" && <ShortcutSettings />}

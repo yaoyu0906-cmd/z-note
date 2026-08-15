@@ -2,11 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { FilePlus, FolderPlus, FolderInput, Trash2, Star } from "lucide-react";
+import { FilePlus, FolderPlus, FolderInput, Trash2, Star, Cloud, CloudOff } from "lucide-react";
 import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 import { useTabsStore } from "@/lib/store/useTabsStore";
 import { useUIStore } from "@/lib/store/useUIStore";
+import { useAuthStore } from "@/lib/store/useAuthStore";
+import { useSyncStore, resyncAfterMove } from "@/lib/store/useSyncStore";
 import { MoveDestinationList } from "@/components/workspace/MoveDestinationList";
+import { SyncDeleteDialog } from "@/components/workspace/SyncDeleteDialog";
 
 interface FolderContextMenuProps {
   workspaceId: string;
@@ -34,9 +37,14 @@ export function FolderContextMenu({
   const isFavorite = useWorkspaceStore((s) =>
     s.workspaces.find((w) => w.id === workspaceId)?.favoriteFolders.includes(path) ?? false
   );
+  const isLoggedIn = useAuthStore((s) => s.status === "signed-in");
+  const synced = useSyncStore((s) => s.isSynced(workspaceId, path));
+  const syncStatus = useSyncStore((s) => s.statusFor(workspaceId, path));
+  const quotaMessage = useSyncStore((s) => s.quotaMessage);
 
   const [showMoveList, setShowMoveList] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [syncDeleteOpen, setSyncDeleteOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -60,7 +68,12 @@ export function FolderContextMenu({
     // active tab in place by the time this resolves).
     const activeIdBefore = useTabsStore.getState().activeTabByPane.primary;
     const wasActiveRoute = activeIdBefore && pathname === `/note/${encodeURIComponent(activeIdBefore)}`;
+    const wasSynced = synced;
     await moveFolder({ workspaceId, path }, targetWorkspaceId, targetFolderPath);
+    if (wasSynced) {
+      const newPath = targetFolderPath ? `${targetFolderPath}/${name}` : name;
+      resyncAfterMove(workspaceId, path, targetWorkspaceId, newPath, true);
+    }
     if (wasActiveRoute) {
       const activeIdAfter = useTabsStore.getState().activeTabByPane.primary;
       if (activeIdAfter && activeIdAfter !== activeIdBefore) {
@@ -70,7 +83,17 @@ export function FolderContextMenu({
     onClose();
   }
 
+  function handleToggleSync() {
+    if (!isLoggedIn) return;
+    if (synced) useSyncStore.getState().unsync(workspaceId, path, true, { deleteCloud: true });
+    else useSyncStore.getState().syncFolder(workspaceId, path);
+  }
+
   async function handleDelete() {
+    if (synced) {
+      setSyncDeleteOpen(true);
+      return;
+    }
     if (!confirmingDelete) {
       setConfirmingDelete(true);
       return;
@@ -79,6 +102,20 @@ export function FolderContextMenu({
     const wasActiveRoute = activeIdBefore && pathname === `/note/${encodeURIComponent(activeIdBefore)}`;
     await deleteFolder(workspaceId, path);
     if (wasActiveRoute) router.push("/");
+    onClose();
+  }
+
+  async function handleSyncDelete(target: "local" | "cloud" | "both") {
+    setSyncDeleteOpen(false);
+    if (target === "cloud" || target === "both") {
+      await useSyncStore.getState().unsync(workspaceId, path, true, { deleteCloud: true });
+    }
+    if (target === "local" || target === "both") {
+      const activeIdBefore = useTabsStore.getState().activeTabByPane.primary;
+      const wasActiveRoute = activeIdBefore && pathname === `/note/${encodeURIComponent(activeIdBefore)}`;
+      await deleteFolder(workspaceId, path);
+      if (wasActiveRoute) router.push("/");
+    }
     onClose();
   }
 
@@ -137,6 +174,24 @@ export function FolderContextMenu({
         )}
 
         <button
+          onClick={handleToggleSync}
+          disabled={!isLoggedIn}
+          title={!isLoggedIn ? "Log in to sync to the cloud" : syncStatus === "quota-exceeded" ? quotaMessage ?? undefined : undefined}
+          className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left hover:bg-accentSoft dark:hover:bg-accentSoftDark disabled:opacity-40 disabled:hover:bg-transparent ${
+            syncStatus === "quota-exceeded" ? "text-red-600 dark:text-red-400" : "text-ink dark:text-inkDark"
+          }`}
+        >
+          {synced ? <Cloud size={14} className="shrink-0 text-accent dark:text-accentDark" /> : <CloudOff size={14} className="shrink-0" />}
+          {synced
+            ? syncStatus === "syncing"
+              ? "Syncing…"
+              : "Synced to Cloud"
+            : syncStatus === "quota-exceeded"
+              ? "Cloud storage full"
+              : "Sync to Cloud"}
+        </button>
+
+        <button
           onClick={handleDelete}
           onBlur={() => setConfirmingDelete(false)}
           className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left ${
@@ -149,6 +204,13 @@ export function FolderContextMenu({
           {confirmingDelete ? "Click again to delete folder" : "Delete folder"}
         </button>
       </div>
+
+      <SyncDeleteDialog
+        open={syncDeleteOpen}
+        name={name}
+        onClose={() => setSyncDeleteOpen(false)}
+        onDelete={handleSyncDelete}
+      />
     </div>
   );
 }

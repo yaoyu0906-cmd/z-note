@@ -779,6 +779,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }));
     if (note.hasLocalHandle && entry) get().refreshWorkspaceTreeOnly(entry.id);
     if (note.workspaceId) persistWorkspaceMeta(note.workspaceId, get());
+
+    // If a synced file's path just changed (this is the plain rename path,
+    // separate from FileContextMenu's "Move to…", which handles its own
+    // resync), the cloud copy would otherwise go stale under the old name
+    // and stop receiving future saves. Dynamic import avoids a static
+    // circular dependency between the workspace and sync stores.
+    if (note.workspaceId && newPath !== note.path) {
+      const { resyncAfterMove } = await import("@/lib/store/useSyncStore");
+      resyncAfterMove(note.workspaceId, note.path, note.workspaceId, newPath, false);
+    }
   },
 
   deleteNote: async (noteId) => {

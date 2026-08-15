@@ -13,6 +13,9 @@ import { pickFile, getExtension, openLinkedFile, saveFileLinkHandle } from "@/li
 import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 import { useActiveEditorStore } from "@/lib/store/useActiveEditorStore";
 import { useSettingsStore } from "@/lib/store/useSettingsStore";
+import { useSyncStore } from "@/lib/store/useSyncStore";
+import { isCloudNoteId, pushCloudOnlyNote } from "@/lib/cloudNote";
+import { useCloudRealtime } from "@/lib/useCloudRealtime";
 import { readFile, writeFile } from "@/lib/fs/fileSystemAccess";
 import { eventToKeyString } from "@/lib/keyboard/keyString";
 import type { CanvasToolId, FileLinkElement, ImageElement } from "@/lib/canvas/types";
@@ -57,6 +60,7 @@ export function CanvasEditor({ note, handle, initialContent }: CanvasEditorProps
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [fullscreenImage, setFullscreenImage] = useState<ImageElement | null>(null);
   const [mode, setMode] = useState<"edit" | "view">("edit");
+  const [cloudSaveError, setCloudSaveError] = useState<string | null>(null);
 
   const initialDocument = useRef(parseCanvasDocument(loadedContent ?? "")).current;
   const state = useCanvasEditorState(initialDocument);
@@ -78,7 +82,8 @@ export function CanvasEditor({ note, handle, initialContent }: CanvasEditorProps
   }, [handle]);
 
   // Re-seed the editor state if the loaded content changes after the
-  // initial mount (e.g. the handle resolved a moment after first paint).
+  // initial mount (e.g. the handle resolved a moment after first paint,
+  // or — for a cloud-only canvas — another device just saved a change).
   const seededRef = useRef(loadedContent);
   useEffect(() => {
     if (loadedContent && loadedContent !== seededRef.current) {
@@ -89,16 +94,32 @@ export function CanvasEditor({ note, handle, initialContent }: CanvasEditorProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadedContent]);
 
+  // Cloud-only canvases (no local File System Access handle) pick up
+  // edits saved from another device live, reusing the same "re-seed on
+  // loadedContent change" path above rather than a separate mechanism.
+  useCloudRealtime(
+    note.id,
+    () => JSON.stringify(toDocument()),
+    (remoteJson) => setLoadedContent(remoteJson)
+  );
+
   useEffect(() => {
     registerSave(async () => {
       const json = JSON.stringify(toDocument());
+      if (isCloudNoteId(note.id)) {
+        const result = await pushCloudOnlyNote(note.id, note.type, json);
+        setCloudSaveError(result.ok ? null : result.reason);
+        markSaved();
+        return;
+      }
       if (handle) await writeFile(handle, json);
       else setNoteContent(note.id, json);
       markSaved();
+      if (note.workspaceId) useSyncStore.getState().pushIfSynced(note.workspaceId, note, json);
     });
     return () => registerSave(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handle, note.id, toDocument, registerSave, setNoteContent, markSaved]);
+  }, [handle, note.id, note.workspaceId, note.path, note.type, toDocument, registerSave, setNoteContent, markSaved]);
 
   // Matches RichNoteEditor's view-mode behavior: no stray selection UI
   // (outline/handles) should persist once editing is disabled.
@@ -373,6 +394,7 @@ export function CanvasEditor({ note, handle, initialContent }: CanvasEditorProps
         onUndo={mode === "edit" ? undo : () => {}}
         onRedo={mode === "edit" ? redo : () => {}}
         isDirty={isDirty}
+        cloudSaveError={cloudSaveError}
       />
 
       <div className="relative flex-1 min-h-0 flex">

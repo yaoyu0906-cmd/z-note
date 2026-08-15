@@ -11,6 +11,9 @@ import { useActiveEditorStore } from "@/lib/store/useActiveEditorStore";
 import { readFile, writeFile, pickSaveLocation } from "@/lib/fs/fileSystemAccess";
 import { highlightToReact, trailingLineFiller } from "@/lib/editor/highlightToReact";
 import { SCRATCH_PAD_NOTE_ID } from "@/lib/scratchPad";
+import { useSyncStore } from "@/lib/store/useSyncStore";
+import { isCloudNoteId, pushCloudOnlyNote } from "@/lib/cloudNote";
+import { useCloudRealtime } from "@/lib/useCloudRealtime";
 import type { Note } from "@/lib/types/note";
 
 interface MarkdownEditorProps {
@@ -35,6 +38,7 @@ export function MarkdownEditor({
   const [mode, setMode] = useState<ViewMode>("code");
   const [rewriting, setRewriting] = useState(false);
   const [content, setContent] = useState(initialContent ?? "");
+  const [cloudSaveError, setCloudSaveError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const gutterRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLPreElement>(null);
@@ -48,6 +52,16 @@ export function MarkdownEditor({
   const registerSave = useActiveEditorStore((s) => s.registerSave);
 
   const { suggestion, request, clear } = useGhostText({ provider, apiKey, model });
+
+  // Cloud-only files (no local File System Access handle at all — either
+  // this device can't use the API, e.g. Safari/iOS, or the file was
+  // simply never downloaded) pick up edits saved from another device
+  // live, the same way any other multi-device sync target would.
+  useCloudRealtime(
+    note.id,
+    () => content,
+    (remote) => setContent(remote)
+  );
 
   // Load the real file's content once a handle is available.
   useEffect(() => {
@@ -71,11 +85,23 @@ export function MarkdownEditor({
         registerFileHandle(note.id, picked);
         return;
       }
+      if (isCloudNoteId(note.id)) {
+        // No local file at all — this is the cloud-only editing path for
+        // devices without File System Access. Save goes straight to
+        // Supabase instead of through writeFile/setNoteContent.
+        const result = await pushCloudOnlyNote(note.id, note.type, content);
+        setCloudSaveError(result.ok ? null : result.reason);
+        return;
+      }
       if (handle) await writeFile(handle, content);
       else setNoteContent(note.id, content);
+      // Cloud sync is opt-in per file/folder (Settings → Account, or the
+      // file's right-click menu) — this is a no-op unless this exact note
+      // was marked for sync.
+      if (note.workspaceId) useSyncStore.getState().pushIfSynced(note.workspaceId, note, content);
     });
     return () => registerSave(null);
-  }, [handle, content, note.id, note.title, registerSave, setNoteContent, registerFileHandle]);
+  }, [handle, content, note.id, note.title, note.workspaceId, note.path, note.type, registerSave, setNoteContent, registerFileHandle]);
 
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const next = e.target.value;
@@ -168,12 +194,22 @@ export function MarkdownEditor({
   return (
     <div className="flex h-full flex-col border border-line dark:border-lineDark rounded-md overflow-hidden">
       <div className="flex items-center justify-between border-b border-line dark:border-lineDark bg-white dark:bg-surfaceDark px-3 py-2">
-        <EditableFilename
-          title={note.title}
-          path={note.path}
-          type={note.type}
-          onRename={(updates) => renameNote(note.id, updates)}
-        />
+        <div className="flex items-center gap-2 min-w-0">
+          <EditableFilename
+            title={note.title}
+            path={note.path}
+            type={note.type}
+            onRename={(updates) => renameNote(note.id, updates)}
+          />
+          {cloudSaveError && (
+            <span
+              className="text-xs text-red-600 dark:text-red-400 truncate"
+              title={cloudSaveError}
+            >
+              Cloud save failed: {cloudSaveError}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <button
             className={`text-xs px-2 py-1 rounded ${
