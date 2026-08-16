@@ -137,7 +137,7 @@ export function RichNoteEditor({ note, handle, initialContent }: RichNoteEditorP
 
   // Register Ctrl+S for whichever note is currently mounted.
   useEffect(() => {
-    registerSave(async () => {
+    registerSave(note.id, async () => {
       if (!editor) return;
       const html = editor.getHTML();
       if (isCloudNoteId(note.id)) {
@@ -149,7 +149,7 @@ export function RichNoteEditor({ note, handle, initialContent }: RichNoteEditorP
       else setNoteContent(note.id, html);
       if (note.workspaceId) useSyncStore.getState().pushIfSynced(note.workspaceId, note, html);
     });
-    return () => registerSave(null);
+    return () => registerSave(note.id, null);
   }, [editor, handle, note.id, note.workspaceId, note.path, note.type, registerSave, setNoteContent]);
 
   useEffect(() => {

@@ -77,7 +77,7 @@ export function MarkdownEditor({
   // tab, this session) goes through the exact same writeFile(handle, ...)
   // path every other note already uses.
   useEffect(() => {
-    registerSave(async () => {
+    registerSave(note.id, async () => {
       if (note.id === SCRATCH_PAD_NOTE_ID && !handle) {
         const picked = await pickSaveLocation(`${note.title || "Untitled"}.md`);
         if (!picked) return; // user cancelled — pad stays unsaved/ephemeral
@@ -100,7 +100,7 @@ export function MarkdownEditor({
       // was marked for sync.
       if (note.workspaceId) useSyncStore.getState().pushIfSynced(note.workspaceId, note, content);
     });
-    return () => registerSave(null);
+    return () => registerSave(note.id, null);
   }, [handle, content, note.id, note.title, note.workspaceId, note.path, note.type, registerSave, setNoteContent, registerFileHandle]);
 
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {

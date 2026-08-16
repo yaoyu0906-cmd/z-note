@@ -25,6 +25,19 @@ export default function LoginPage() {
     if (status === "signed-in") router.replace("/");
   }, [status, router]);
 
+  // Surfaces a failed OAuth callback (e.g. the Google flow) — the route
+  // handler redirects errors back here as ?error=... rather than showing
+  // its own page, so this reuses the exact same error display already
+  // used for email/password sign-in below.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const callbackError = params.get("error");
+    if (callbackError) {
+      useAuthStore.setState({ error: decodeURIComponent(callbackError) });
+      window.history.replaceState(null, "", "/login");
+    }
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email || !password) return;

@@ -104,7 +104,7 @@ export function CanvasEditor({ note, handle, initialContent }: CanvasEditorProps
   );
 
   useEffect(() => {
-    registerSave(async () => {
+    registerSave(note.id, async () => {
       const json = JSON.stringify(toDocument());
       if (isCloudNoteId(note.id)) {
         const result = await pushCloudOnlyNote(note.id, note.type, json);
@@ -117,7 +117,7 @@ export function CanvasEditor({ note, handle, initialContent }: CanvasEditorProps
       markSaved();
       if (note.workspaceId) useSyncStore.getState().pushIfSynced(note.workspaceId, note, json);
     });
-    return () => registerSave(null);
+    return () => registerSave(note.id, null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handle, note.id, note.workspaceId, note.path, note.type, toDocument, registerSave, setNoteContent, markSaved]);
 
