@@ -22,7 +22,6 @@ interface CanvasTopBarProps {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
-  isDirty: boolean;
   cloudSaveError?: string | null;
 }
 
@@ -41,19 +40,12 @@ export function CanvasTopBar({
   canRedo,
   onUndo,
   onRedo,
-  isDirty,
   cloudSaveError,
 }: CanvasTopBarProps) {
   return (
     <div className="flex items-center justify-between border-b border-line dark:border-lineDark bg-white dark:bg-surfaceDark px-3 py-2 shrink-0">
       <div className="flex items-center gap-3 min-w-0">
         <EditableFilename title={note.title} path={note.path} type={note.type} onRename={onRename} />
-        {isDirty && (
-          <span
-            className="h-1.5 w-1.5 rounded-full bg-accent dark:bg-accentDark shrink-0"
-            title="Unsaved changes"
-          />
-        )}
         {cloudSaveError && (
           <span className="text-xs text-red-600 dark:text-red-400 truncate" title={cloudSaveError}>
             Cloud save failed: {cloudSaveError}

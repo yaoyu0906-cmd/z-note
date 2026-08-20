@@ -6,6 +6,8 @@ import { useAuthStore } from "@/lib/store/useAuthStore";
 import { useSyncStore } from "@/lib/store/useSyncStore";
 import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 import { useSettingsSyncStore, startSettingsSyncWatcher } from "@/lib/settingsSync";
+import { useDraftStore } from "@/lib/store/useDraftStore";
+import { startAutosave } from "@/lib/autosave";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const themeMode = useSettingsStore((s) => s.themeMode);
@@ -28,6 +30,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     initializeAuth();
     startSettingsSyncWatcher();
+    startAutosave();
   }, [initializeAuth]);
 
   // Pulls the "sync settings across devices" preference (and, if it was
@@ -49,6 +52,24 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     ids.forEach((id) => useSyncStore.getState().refreshWorkspace(id));
     useSyncStore.getState().refreshUsage();
   }, [authStatus, workspaceIds]);
+
+  // The browser's own warning for closing/reloading the whole page —
+  // distinct from Z-Note's own close-tab dialog, which only applies to
+  // closing a single tab from within the app and can't intercept a page
+  // unload at all. Registered once; checks current dirty state at fire
+  // time rather than re-subscribing on every draft change.
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (useDraftStore.getState().dirtyNoteIds().length === 0) return;
+      e.preventDefault();
+      // Chrome ignores any custom string and shows its own generic
+      // message, but returnValue still needs setting for the prompt to
+      // appear at all in some browsers.
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
 
   return <>{children}</>;
 }

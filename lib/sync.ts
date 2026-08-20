@@ -207,3 +207,79 @@ export async function removeCloudEntry(
     if (error) throw error;
   }
 }
+
+// ---------------------------------------------------------------------
+// Cloud-as-a-workspace: create/rename/move for items that live only in
+// the cloud (created directly from the Cloud section, not synced down
+// from a local file). Every one of these operates purely on synced_files
+// — never on local files/notes — so an action taken on a cloud item only
+// ever affects the cloud item, matching how syncing a *local* item is the
+// only direction that cascades (local edit -> cloud update).
+// ---------------------------------------------------------------------
+
+/** Creates a new, empty cloud-only file — no local counterpart. Reuses
+ *  the same quota-enforcing write every synced file goes through. */
+export async function createCloudFile(
+  userId: string,
+  workspaceName: string,
+  path: string,
+  fileType: NoteFileType
+): Promise<void> {
+  await pushFileEntry(userId, workspaceName, path, fileType, "");
+}
+
+export async function createCloudFolder(userId: string, workspaceName: string, path: string): Promise<void> {
+  await pushFolderEntry(userId, workspaceName, path);
+}
+
+interface SyncedFileFullRow {
+  path: string;
+  is_folder: boolean;
+  file_type: NoteFileType | null;
+  content: string | null;
+}
+
+/** Renames/moves a cloud item by rewriting its path (and, for a folder,
+ *  every descendant's path) — Postgres/PostgREST has no "replace a prefix
+ *  across matching rows" update, so this reads the affected rows, computes
+ *  their new paths client-side, and rewrites them. Cloud file/folder
+ *  counts under the 2 MB quota are small enough that this is cheap. */
+export async function moveCloudEntry(
+  userId: string,
+  workspaceName: string,
+  oldPath: string,
+  newPath: string,
+  isFolder: boolean
+): Promise<void> {
+  const supabase = createClient();
+
+  if (!isFolder) {
+    const { data, error } = await supabase
+      .from("synced_files")
+      .select("path, is_folder, file_type, content")
+      .eq("user_id", userId)
+      .eq("workspace_name", workspaceName)
+      .eq("path", oldPath)
+      .maybeSingle<SyncedFileFullRow>();
+    if (error) throw error;
+    if (!data) return;
+    await pushFileEntry(userId, workspaceName, newPath, data.file_type ?? "md", data.content ?? "");
+    await removeCloudEntry(userId, workspaceName, oldPath, false);
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("synced_files")
+    .select("path, is_folder, file_type, content")
+    .eq("user_id", userId)
+    .eq("workspace_name", workspaceName)
+    .or(`path.eq.${oldPath},path.like.${oldPath}/%`);
+  if (error) throw error;
+
+  for (const row of (data ?? []) as SyncedFileFullRow[]) {
+    const rewritten = row.path === oldPath ? newPath : `${newPath}${row.path.slice(oldPath.length)}`;
+    if (row.is_folder) await pushFolderEntry(userId, workspaceName, rewritten);
+    else await pushFileEntry(userId, workspaceName, rewritten, row.file_type ?? "md", row.content ?? "");
+  }
+  await removeCloudEntry(userId, workspaceName, oldPath, true);
+}

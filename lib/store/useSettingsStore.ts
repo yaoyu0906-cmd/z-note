@@ -25,6 +25,14 @@ interface SettingsState {
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => void;
 
+  /** Periodically saves every dirty open note/canvas — Settings →
+   *  Workspace, on by default. Reuses the same per-note save functions
+   *  (useActiveEditorStore) and dirty tracking (useDraftStore) that power
+   *  Ctrl+S and the close-tab dialog, so an autosaved note goes through
+   *  the exact same write-to-disk/push-to-cloud path a manual save does. */
+  autosaveEnabled: boolean;
+  setAutosaveEnabled: (enabled: boolean) => void;
+
   aiFeatureFlags: AIFeatureFlags;
   toggleAIFeature: (flag: keyof AIFeatureFlags) => void;
 
@@ -46,6 +54,9 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>((set) => ({
   themeMode: "light",
   setThemeMode: (themeMode) => set({ themeMode }),
+
+  autosaveEnabled: true,
+  setAutosaveEnabled: (autosaveEnabled) => set({ autosaveEnabled }),
 
   aiFeatureFlags: DEFAULT_AI_FEATURE_FLAGS,
   toggleAIFeature: (flag) =>

@@ -20,6 +20,13 @@ interface UIState {
   newFileDialogTarget: { workspaceId: string | null; folderPath: string } | null;
   openNewFileDialog: (target?: { workspaceId: string | null; folderPath: string }) => void;
   closeNewFileDialog: () => void;
+
+  /** A tab close is pending confirmation because it has unsaved changes —
+   *  shared so both the tab bar's close button and the Ctrl+W shortcut
+   *  can trigger the same dialog instead of each needing their own copy
+   *  of this state. */
+  pendingTabClose: { id: string; type: string; label: string } | null;
+  setPendingTabClose: (value: { id: string; type: string; label: string } | null) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -39,4 +46,7 @@ export const useUIStore = create<UIState>((set) => ({
   openNewFileDialog: (target) =>
     set({ newFileDialogTarget: target ?? { workspaceId: null, folderPath: "" } }),
   closeNewFileDialog: () => set({ newFileDialogTarget: null }),
+
+  pendingTabClose: null,
+  setPendingTabClose: (pendingTabClose) => set({ pendingTabClose }),
 }));

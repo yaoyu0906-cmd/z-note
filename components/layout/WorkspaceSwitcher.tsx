@@ -67,7 +67,7 @@ export function WorkspaceSwitcher() {
             disabled={!isSupported}
             className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left text-ink dark:text-inkDark hover:bg-accentSoft dark:hover:bg-accentSoftDark disabled:opacity-40"
           >
-            <FolderPlus size={14} /> Set up Documents/Z-Note
+            <FolderPlus size={14} /> Set up Desktop/Z-Note
           </button>
           {!isSupported && (
             <p className="px-3 py-1.5 text-[11px] text-red-600 dark:text-red-400">

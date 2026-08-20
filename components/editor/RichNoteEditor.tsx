@@ -25,6 +25,7 @@ import { useActiveEditorStore } from "@/lib/store/useActiveEditorStore";
 import { useSyncStore } from "@/lib/store/useSyncStore";
 import { isCloudNoteId, pushCloudOnlyNote } from "@/lib/cloudNote";
 import { useCloudRealtime } from "@/lib/useCloudRealtime";
+import { useDraftStore } from "@/lib/store/useDraftStore";
 import { readFile, writeFile } from "@/lib/fs/fileSystemAccess";
 import type { Note } from "@/lib/types/note";
 
@@ -91,13 +92,18 @@ export function RichNoteEditor({ note, handle, initialContent }: RichNoteEditorP
 
   const editor = useEditor({
     extensions: sharedExtensions(),
-    content: initialContent || STARTER_CONTENT,
+    // Resume an in-progress draft if this note was already open earlier
+    // in this session, rather than always starting from the last-saved
+    // content — this is what keeps unsaved edits alive across tab
+    // switches. Only read once: Tiptap only honors `content` at creation.
+    content: useDraftStore.getState().getDraft(note.id) ?? (initialContent || STARTER_CONTENT),
     editorProps: { attributes: { class: PROSE_CLASSES } },
     immediatelyRender: false,
     onUpdate: ({ editor: updated }) => {
       // Keep the read-only split preview in sync without re-triggering
       // its own (nonexistent) update handler.
       viewEditor?.commands.setContent(updated.getJSON(), false);
+      useDraftStore.getState().setDraft(note.id, updated.getHTML());
     },
   });
 
@@ -105,23 +111,34 @@ export function RichNoteEditor({ note, handle, initialContent }: RichNoteEditorP
   // (hooks can't be conditional) but only mounted in the DOM when needed.
   const viewEditor = useEditor({
     extensions: sharedExtensions(),
-    content: initialContent || STARTER_CONTENT,
+    content: useDraftStore.getState().getDraft(note.id) ?? (initialContent || STARTER_CONTENT),
     editable: false,
     editorProps: { attributes: { class: PROSE_CLASSES } },
     immediatelyRender: false,
   });
 
-  // Load the real file's content once the editor + handle are both ready.
+  // Establish (or confirm) the known-good baseline for this note. If a
+  // draft was already cached, the baseline is already set from whenever
+  // that draft was first loaded — re-reading disk here would either be
+  // redundant or, worse, clobber in-progress edits, so this only runs for
+  // a note with no cached draft yet, i.e. genuinely being opened fresh
+  // this session.
   useEffect(() => {
-    if (!editor || !handle) return;
-    readFile(handle).then((html) => {
-      if (html) {
-        editor.commands.setContent(html);
-        viewEditor?.commands.setContent(html);
-      }
-    });
+    if (!editor) return;
+    if (useDraftStore.getState().hasDraft(note.id)) return;
+    if (handle) {
+      readFile(handle).then((html) => {
+        if (html) {
+          editor.commands.setContent(html);
+          viewEditor?.commands.setContent(html);
+        }
+        useDraftStore.getState().markSaved(note.id, html || STARTER_CONTENT);
+      });
+    } else {
+      useDraftStore.getState().markSaved(note.id, initialContent || STARTER_CONTENT);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor, handle]);
+  }, [editor, handle, note.id]);
 
   // Cloud-only notes (no local File System Access handle — this device
   // can't use the API, e.g. Safari/iOS, or the file was never
@@ -132,6 +149,7 @@ export function RichNoteEditor({ note, handle, initialContent }: RichNoteEditorP
     (remoteHtml) => {
       editor?.commands.setContent(remoteHtml);
       viewEditor?.commands.setContent(remoteHtml);
+      useDraftStore.getState().markSaved(note.id, remoteHtml);
     }
   );
 
@@ -143,10 +161,12 @@ export function RichNoteEditor({ note, handle, initialContent }: RichNoteEditorP
       if (isCloudNoteId(note.id)) {
         const result = await pushCloudOnlyNote(note.id, note.type, html);
         setCloudSaveError(result.ok ? null : result.reason);
+        if (result.ok) useDraftStore.getState().markSaved(note.id, html);
         return;
       }
       if (handle) await writeFile(handle, html);
       else setNoteContent(note.id, html);
+      useDraftStore.getState().markSaved(note.id, html);
       if (note.workspaceId) useSyncStore.getState().pushIfSynced(note.workspaceId, note, html);
     });
     return () => registerSave(note.id, null);

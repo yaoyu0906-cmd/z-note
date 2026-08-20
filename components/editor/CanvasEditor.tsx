@@ -14,6 +14,7 @@ import { useWorkspaceStore } from "@/lib/store/useWorkspaceStore";
 import { useActiveEditorStore } from "@/lib/store/useActiveEditorStore";
 import { useSettingsStore } from "@/lib/store/useSettingsStore";
 import { useSyncStore } from "@/lib/store/useSyncStore";
+import { useDraftStore } from "@/lib/store/useDraftStore";
 import { isCloudNoteId, pushCloudOnlyNote } from "@/lib/cloudNote";
 import { useCloudRealtime } from "@/lib/useCloudRealtime";
 import { readFile, writeFile } from "@/lib/fs/fileSystemAccess";
@@ -62,7 +63,9 @@ export function CanvasEditor({ note, handle, initialContent }: CanvasEditorProps
   const [mode, setMode] = useState<"edit" | "view">("edit");
   const [cloudSaveError, setCloudSaveError] = useState<string | null>(null);
 
-  const initialDocument = useRef(parseCanvasDocument(loadedContent ?? "")).current;
+  const initialDocument = useRef(
+    parseCanvasDocument(useDraftStore.getState().getDraft(note.id) ?? loadedContent ?? "")
+  ).current;
   const state = useCanvasEditorState(initialDocument);
   const {
     tool, setTool, selectedIds, selectedElements, style, setStyle,
@@ -71,6 +74,32 @@ export function CanvasEditor({ note, handle, initialContent }: CanvasEditorProps
     zoomAt, resetZoom, addElement, updateElement, isDirty, markSaved, toDocument,
     copySelection, pasteAtPoint, pan, hasClipboard,
   } = state;
+
+  // Establish (or confirm) the known-good baseline for this note. Skipped
+  // entirely if a draft was already cached — re-reading disk there would
+  // either be redundant or clobber in-progress edits.
+  useEffect(() => {
+    if (useDraftStore.getState().hasDraft(note.id)) return;
+    useDraftStore.getState().markSaved(note.id, loadedContent ?? JSON.stringify(state.toDocument()));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note.id]);
+
+  // Mirrors the live canvas document into the shared draft cache whenever
+  // it changes — debounced, since a drag can fire many state updates per
+  // second — so switching to another tab and back (or the close-tab/
+  // beforeunload dirty checks) see the same in-progress edits Canvas's
+  // own isDirty already tracks internally.
+  const draftDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!isDirty) return;
+    if (draftDebounceRef.current) clearTimeout(draftDebounceRef.current);
+    draftDebounceRef.current = setTimeout(() => {
+      useDraftStore.getState().setDraft(note.id, JSON.stringify(toDocument()));
+    }, 250);
+    return () => {
+      if (draftDebounceRef.current) clearTimeout(draftDebounceRef.current);
+    };
+  }, [isDirty, toDocument, note.id]);
 
   // Load real file content once the handle resolves (mirrors RichNoteEditor/MarkdownEditor).
   useEffect(() => {
@@ -84,19 +113,25 @@ export function CanvasEditor({ note, handle, initialContent }: CanvasEditorProps
   // Re-seed the editor state if the loaded content changes after the
   // initial mount (e.g. the handle resolved a moment after first paint,
   // or — for a cloud-only canvas — another device just saved a change).
+  // Skipped while there are unsaved local edits, so a late-resolving
+  // handle read or an incoming realtime update can never silently
+  // overwrite work in progress.
   const seededRef = useRef(loadedContent);
   useEffect(() => {
     if (loadedContent && loadedContent !== seededRef.current) {
       seededRef.current = loadedContent;
+      if (isDirty) return;
       const doc = parseCanvasDocument(loadedContent);
       state.loadDocument(doc);
+      useDraftStore.getState().markSaved(note.id, loadedContent);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadedContent]);
 
   // Cloud-only canvases (no local File System Access handle) pick up
   // edits saved from another device live, reusing the same "re-seed on
-  // loadedContent change" path above rather than a separate mechanism.
+  // loadedContent change" path above rather than a separate mechanism —
+  // including its "skip while dirty" guard.
   useCloudRealtime(
     note.id,
     () => JSON.stringify(toDocument()),
@@ -110,11 +145,13 @@ export function CanvasEditor({ note, handle, initialContent }: CanvasEditorProps
         const result = await pushCloudOnlyNote(note.id, note.type, json);
         setCloudSaveError(result.ok ? null : result.reason);
         markSaved();
+        if (result.ok) useDraftStore.getState().markSaved(note.id, json);
         return;
       }
       if (handle) await writeFile(handle, json);
       else setNoteContent(note.id, json);
       markSaved();
+      useDraftStore.getState().markSaved(note.id, json);
       if (note.workspaceId) useSyncStore.getState().pushIfSynced(note.workspaceId, note, json);
     });
     return () => registerSave(note.id, null);
@@ -393,7 +430,6 @@ export function CanvasEditor({ note, handle, initialContent }: CanvasEditorProps
         canRedo={mode === "edit" && canRedo}
         onUndo={mode === "edit" ? undo : () => {}}
         onRedo={mode === "edit" ? redo : () => {}}
-        isDirty={isDirty}
         cloudSaveError={cloudSaveError}
       />
 

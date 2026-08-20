@@ -12,6 +12,7 @@ import { readFile, writeFile, pickSaveLocation } from "@/lib/fs/fileSystemAccess
 import { highlightToReact, trailingLineFiller } from "@/lib/editor/highlightToReact";
 import { SCRATCH_PAD_NOTE_ID } from "@/lib/scratchPad";
 import { useSyncStore } from "@/lib/store/useSyncStore";
+import { useDraftStore } from "@/lib/store/useDraftStore";
 import { isCloudNoteId, pushCloudOnlyNote } from "@/lib/cloudNote";
 import { useCloudRealtime } from "@/lib/useCloudRealtime";
 import type { Note } from "@/lib/types/note";
@@ -37,7 +38,11 @@ export function MarkdownEditor({
 }: MarkdownEditorProps) {
   const [mode, setMode] = useState<ViewMode>("code");
   const [rewriting, setRewriting] = useState(false);
-  const [content, setContent] = useState(initialContent ?? "");
+  // Resume an in-progress draft if this note was already open earlier in
+  // this session (e.g. the user switched to another tab and back) instead
+  // of always starting from the last-saved content — this is what keeps
+  // unsaved edits alive across tab switches.
+  const [content, setContent] = useState(() => useDraftStore.getState().getDraft(note.id) ?? initialContent ?? "");
   const [cloudSaveError, setCloudSaveError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const gutterRef = useRef<HTMLDivElement>(null);
@@ -60,14 +65,30 @@ export function MarkdownEditor({
   useCloudRealtime(
     note.id,
     () => content,
-    (remote) => setContent(remote)
+    (remote) => {
+      setContent(remote);
+      useDraftStore.getState().markSaved(note.id, remote);
+    }
   );
 
-  // Load the real file's content once a handle is available.
+  // Establish (or confirm) the known-good baseline for this note. If a
+  // draft was already cached (see the useState initializer above), the
+  // baseline is already set from whenever that draft was first loaded —
+  // re-reading disk here would either be redundant or, worse, clobber
+  // in-progress edits, so this only runs for a note with no cached draft
+  // yet, i.e. genuinely being opened fresh this session.
   useEffect(() => {
-    if (!handle) return;
-    readFile(handle).then(setContent);
-  }, [handle]);
+    if (useDraftStore.getState().hasDraft(note.id)) return;
+    if (handle) {
+      readFile(handle).then((text) => {
+        setContent(text);
+        useDraftStore.getState().markSaved(note.id, text);
+      });
+    } else {
+      useDraftStore.getState().markSaved(note.id, initialContent ?? "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handle, note.id]);
 
   // Register Ctrl+S for whichever note is currently mounted. The Scratch
   // Pad is the one case with no file of its own yet — its first save
@@ -83,6 +104,7 @@ export function MarkdownEditor({
         if (!picked) return; // user cancelled — pad stays unsaved/ephemeral
         await writeFile(picked, content);
         registerFileHandle(note.id, picked);
+        useDraftStore.getState().markSaved(note.id, content);
         return;
       }
       if (isCloudNoteId(note.id)) {
@@ -91,10 +113,12 @@ export function MarkdownEditor({
         // Supabase instead of through writeFile/setNoteContent.
         const result = await pushCloudOnlyNote(note.id, note.type, content);
         setCloudSaveError(result.ok ? null : result.reason);
+        if (result.ok) useDraftStore.getState().markSaved(note.id, content);
         return;
       }
       if (handle) await writeFile(handle, content);
       else setNoteContent(note.id, content);
+      useDraftStore.getState().markSaved(note.id, content);
       // Cloud sync is opt-in per file/folder (Settings → Account, or the
       // file's right-click menu) — this is a no-op unless this exact note
       // was marked for sync.
@@ -106,6 +130,7 @@ export function MarkdownEditor({
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const next = e.target.value;
     setContent(next);
+    useDraftStore.getState().setDraft(note.id, next);
     clear();
     requestAnimationFrame(syncGutterScroll);
 
@@ -120,6 +145,7 @@ export function MarkdownEditor({
     const cursor = el.selectionStart;
     const next = content.slice(0, cursor) + suggestion + content.slice(cursor);
     setContent(next);
+    useDraftStore.getState().setDraft(note.id, next);
     clear();
   }
 
@@ -130,6 +156,7 @@ export function MarkdownEditor({
     const end = el.selectionEnd;
     const next = content.slice(0, start) + "    " + content.slice(end);
     setContent(next);
+    useDraftStore.getState().setDraft(note.id, next);
     requestAnimationFrame(() => {
       el.selectionStart = el.selectionEnd = start + 4;
     });
@@ -181,6 +208,7 @@ export function MarkdownEditor({
 
       const next = content.slice(0, start) + result.trim() + content.slice(end);
       setContent(next);
+      useDraftStore.getState().setDraft(note.id, next);
     } catch (err) {
       console.error("Rewrite failed", err);
     } finally {

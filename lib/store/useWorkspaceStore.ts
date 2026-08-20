@@ -23,6 +23,7 @@ import {
 import { saveHandleList, getHandleList, ensurePermission } from "@/lib/fs/handleStore";
 import { readWorkspaceMeta, writeWorkspaceMeta, emptyMeta, type WorkspaceMeta } from "@/lib/fs/metaStore";
 import { useTabsStore } from "@/lib/store/useTabsStore";
+import { useDraftStore } from "@/lib/store/useDraftStore";
 
 const WORKSPACES_KEY = "open-workspaces";
 
@@ -236,7 +237,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   },
 
   addDefaultWorkspace: async () => {
-    const root = await pickDirectory({ id: "z-note-workspace", startIn: "documents" });
+    const root = await pickDirectory({ id: "z-note-workspace", startIn: "desktop" });
     const zNoteDir = await getOrCreateSubdirectory(root, "Z-Note");
     let { entry, notes, tags, fileHandles } = await loadWorkspaceContents(zNoteDir);
     if (notes.length === 0) {
@@ -820,6 +821,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       };
     });
     useTabsStore.getState().closeTabsMatching((id) => id === noteId);
+    useDraftStore.getState().clear(noteId);
 
     if (note.workspaceId) {
       await get().refreshWorkspaceTreeOnly(note.workspaceId);
@@ -861,6 +863,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       };
     });
     useTabsStore.getState().closeTabsMatching((id) => removedIds.has(id));
+    removedIds.forEach((id) => useDraftStore.getState().clear(id));
 
     await get().refreshWorkspaceTreeOnly(workspaceId);
     await persistWorkspaceMeta(workspaceId, get());

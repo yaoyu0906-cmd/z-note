@@ -57,13 +57,20 @@ export function useKeyboardShortcuts() {
         case "close-tab": {
           const activeId = activeTabByPane.primary;
           if (!activeId) break;
+          const activeTab = tabs.find((t) => t.id === activeId);
+          if (activeTab?.isDirty) {
+            // Same confirmation the tab bar's close button uses — shared
+            // via useUIStore so both trigger the identical dialog.
+            useUIStore.getState().setPendingTabClose({ id: activeId, type: activeTab.type, label: activeTab.title });
+            break;
+          }
           closeTab(activeId);
-          const { tabs, activeTabByPane: nextActive } = useTabsStore.getState();
-          if (tabs.length === 0) {
+          const { tabs: remaining, activeTabByPane: nextActive } = useTabsStore.getState();
+          if (remaining.length === 0) {
             router.push("/");
           } else {
             const nextId = nextActive.primary;
-            const nextTab = tabs.find((t) => t.id === nextId);
+            const nextTab = remaining.find((t) => t.id === nextId);
             if (nextTab) {
               router.push(`${nextTab.type === "canvas" ? "/canvas" : "/note"}/${nextTab.id}`);
             }

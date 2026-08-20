@@ -60,7 +60,7 @@ export async function getUniqueName(
 interface PickDirectoryOptions {
   /** Lets the browser remember the last folder used for this picker id. */
   id?: string;
-  /** Suggests where the picker opens — "documents" is used for first-run setup. */
+  /** Suggests where the picker opens — "desktop" is used for first-run setup. */
   startIn?: "documents" | "desktop" | "downloads";
 }
 

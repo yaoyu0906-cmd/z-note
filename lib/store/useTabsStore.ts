@@ -21,6 +21,7 @@ interface TabsState {
   setActiveTab: (tabId: string, pane?: PaneId) => void;
   toggleSplit: () => void;
   setDirty: (tabId: string, isDirty: boolean) => void;
+  setSaving: (tabId: string, isSaving: boolean) => void;
   togglePin: (tabId: string) => void;
 }
 
@@ -38,7 +39,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         ? state.tabs
         : [
             ...state.tabs,
-            { id: note.id, title: note.title, type: note.type, isPinned: false, isDirty: false },
+            { id: note.id, title: note.title, type: note.type, isPinned: false, isDirty: false, isSaving: false },
           ],
       activeTabByPane: { ...state.activeTabByPane, [pane]: note.id },
     }));
@@ -97,6 +98,11 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   setDirty: (tabId, isDirty) =>
     set((state) => ({
       tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, isDirty } : t)),
+    })),
+
+  setSaving: (tabId, isSaving) =>
+    set((state) => ({
+      tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, isSaving } : t)),
     })),
 
   togglePin: (tabId) =>

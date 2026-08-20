@@ -25,7 +25,7 @@ export function QuickActions() {
         <div className="flex items-center justify-between gap-3 rounded-md border border-line dark:border-lineDark bg-accentSoft dark:bg-accentSoftDark px-4 py-3">
           <div className="flex items-center gap-2 text-sm text-ink dark:text-inkDark">
             <FolderPlus size={16} className="text-accent dark:text-accentDark shrink-0" />
-            First time here? Set up a Z-Note folder in your Documents.
+            First time here? Set up a Z-Note folder on your Desktop.
           </div>
           <Button variant="primary" size="sm" onClick={() => addDefaultWorkspace()}>
             Set up my folder
